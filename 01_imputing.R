@@ -2,18 +2,18 @@
 
 ## IMPUTING SHORT RUNS OF MISSING VALUES IN TEMPERATURE RECORDS FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED ON 25 SEPTEMBER 2026
+## LAST MODIFIED ON 28 SEPTEMBER 2026
 
 #####
 
 ## 01. LOAD LIBRARIES
 
 library(readr)
-library(writexl)
 library(dplyr)
 library(lubridate)
 library(imputeTS)
-library(parallel)
+library(future)
+library(future.apply)
 
 #####
 
@@ -82,6 +82,18 @@ read_temp <- function(file) {
 }
 
 df_list <- lapply(csv_files, read_temp)
+
+# The six series are combined by position, not joined by timestamp.
+# Each file must therefore already contain exactly one row per
+# 10-minute interval of the analysis period, in chronological order
+# (this is what the quality control described above provides). The
+# row counts are checked here so that any misalignment fails loudly
+# rather than silently shifting one series against the others.
+
+stopifnot(
+    all(vapply(df_list, nrow, integer(1)) == length(dttm))
+)
+
 df <- do.call(cbind.data.frame, df_list)
 
 #####
@@ -93,23 +105,34 @@ df <- do.call(cbind.data.frame, df_list)
 # implemented through imputeTS::na_kalman().
 #
 # Longer missing runs are retained as missing.
+#
+# The six series are imputed independently, so the work is spread
+# across worker processes with the future package. The number of
+# workers affects only run time, not the results.
 
-ncores <- max(1, detectCores() - 1)
+workers <- max(
+    1,
+    availableCores() - 1
+)
 
-cl <- makeCluster(ncores)
+oplan <- plan(
+    multisession,
+    workers = workers
+)
 
-clusterEvalQ(cl, library(imputeTS))
+sr_imp_list <- future_lapply(
+    df,
+    function(col) {
+        imputeTS::na_kalman(
+            col,
+            model = "StructTS",
+            smooth = TRUE,
+            maxgap = 36
+        )
+    }
+)
 
-sr_imp_list <- parLapply(cl, df, function(col) {
-    imputeTS::na_kalman(
-        col,
-        model = "StructTS",
-        smooth = TRUE,
-        maxgap = 36
-    )
-})
-
-stopCluster(cl)
+plan(oplan)
 
 sr_imp <- as.data.frame(sr_imp_list)
 names(sr_imp) <- names(df)
@@ -129,7 +152,7 @@ sr_imp <- sr_imp %>%
 
 ## 07. WRITE IMPUTED DATASET
 
-write_xlsx(
+saveRDS(
     sr_imp,
-    "data/all_sites_sr_imp.xlsx"
+    "data/all_sites_sr_imp.rds"
 )

@@ -1,30 +1,41 @@
 #####
 
-## FIGURE 9: RECONSTRUCTED SIGNAL
+## MULTIBAND RECONSTRUCTION FOR FIGURES 9, 10 AND 11
 ## POOLE'S CAVERN
 ## DATA ANALYSIS
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 27 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
+# Band-pass filters the six residual series within each continuous
+# day or night segment and saves the two outputs used downstream:
+#
+#   data/kalman_filtered_multiband.rds
+#       Reconstructed series (Figure 11).
+#
+#   data/kalman_filtered_multiband_segments.rds
+#       Per-segment minimum and maximum (Figure 10).
+#
+# The band-pass computation is carried out once here; the Figure 9
+# data are derived from the first of these files in
+# 09_reconstruction_analysis.R.
+
 
 # -------------------------------------------------------------------------
-# Packages
+# Packages and functions
 # -------------------------------------------------------------------------
 
-library(openxlsx)
 library(dplyr)
-library(lubridate)
-library(purrr)
-library(tibble)
+
+source("analysis_functions.R")
 
 
 # -------------------------------------------------------------------------
 # Input and output
 # -------------------------------------------------------------------------
 
-input_file <- "data/kalman_residuals_full_imp.xlsx"
+input_file <- "data/kalman_residuals_full_imp.rds"
 
 output_full <- "data/kalman_filtered_multiband.rds"
 output_segments <- "data/kalman_filtered_multiband_segments.rds"
@@ -34,25 +45,15 @@ output_segments <- "data/kalman_filtered_multiband_segments.rds"
 # Load data
 # -------------------------------------------------------------------------
 
-df <- read.xlsx(input_file)
+df <- readRDS(input_file)
 
-df$dttm <- as.POSIXct(
-    (df$dttm - 25569) * 86400,
-    origin = "1970-01-01",
-    tz = "UTC"
-)
+# The access-regime identifier is set aside before filtering and
+# restored afterwards.
 
 period <- df$period
 
 df <- df %>%
     select(-period)
-
-options(digits = 16)
-
-Sys.setlocale(
-    "LC_TIME",
-    "English_United Kingdom"
-)
 
 
 # -------------------------------------------------------------------------
@@ -66,9 +67,7 @@ fs_cpd <- 144
 # Band-pass processing
 # -------------------------------------------------------------------------
 
-source("bandpass_functions.R")
-
-res <- process_day_night_multiband(
+res <- reconstruct_multiband_segments(
     df,
     timestamp_col = "dttm",
     fs_cpd = fs_cpd

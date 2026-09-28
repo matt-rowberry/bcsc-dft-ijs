@@ -2,22 +2,22 @@
 
 ## FIGURE 6: RESIDUAL TEMPERATURE TIME SERIES
 ## POOLE'S CAVERN
+## PLOTTING ONLY
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 26 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
 
 # -------------------------------------------------------------------------
-# Packages
+# Packages and helpers
 # -------------------------------------------------------------------------
 
 library(ggplot2)
-library(patchwork)
-library(cowplot)
-library(extrafont)
-font_import()
-loadfonts(device = "win")
+
+source("plot_helpers.R")
+
+load_plot_fonts()
 
 
 # -------------------------------------------------------------------------
@@ -35,141 +35,40 @@ df <- readRDS(input_file)
 night_colour <- "#FF7F0E"
 day_colour <- "#2962FF"
 
+# Y-axis limits and breaks for each monitoring point (chosen by eye
+# to suit the size of the residuals at each point).
+
 monitoring_points <- list(
     ent = list(
-        label = "Monitoring point 1",
         limits = c(-2, 2),
         breaks = c(-2, 0, 2)
     ),
 
     ten = list(
-        label = "Monitoring point 2",
         limits = c(-0.4, 0.4),
         breaks = c(-0.4, 0, 0.4)
     ),
 
     sin = list(
-        label = "Monitoring point 3",
         limits = c(-0.2, 0.2),
         breaks = c(-0.2, 0, 0.2)
     ),
 
     brg = list(
-        label = "Monitoring point 4",
         limits = c(-0.2, 0.2),
         breaks = c(-0.2, 0, 0.2)
     ),
 
     mqs = list(
-        label = "Monitoring point 5",
         limits = c(-0.1, 0.1),
         breaks = c(-0.1, 0, 0.1)
     ),
 
     top = list(
-        label = "Monitoring point 6",
         limits = c(-0.1, 0.1),
         breaks = c(-0.1, 0, 0.1)
     )
 )
-
-# -------------------------------------------------------------------------
-# Theme
-# -------------------------------------------------------------------------
-
-theme_ste <- function(
-        base_family = "Aptos",
-        base_size = 7
-) {
-
-    theme_classic(
-        base_family = base_family,
-        base_size = base_size
-    ) +
-
-        theme(
-
-            plot.background =
-                element_rect(
-                    fill = "white",
-                    colour = NA
-                ),
-
-            panel.background =
-                element_rect(
-                    fill = "white",
-                    colour = NA
-                ),
-
-            plot.title =
-                element_text(
-                    vjust = 0.2,
-                    hjust = 0,
-                    face = "bold",
-                    size = 8.5
-                ),
-
-            plot.subtitle =
-                element_blank(),
-
-            panel.grid.major.x =
-                element_blank(),
-
-            panel.grid.major.y =
-                element_line(
-                    colour = "#d62728",
-                    linewidth = 0.3,
-                    linetype = "solid"
-                ),
-
-            panel.grid.minor.x =
-                element_blank(),
-
-            panel.grid.minor.y =
-                element_line(
-                    colour = "#333333",
-                    linewidth = 0.15,
-                    linetype = "dotted"
-                ),
-
-            axis.line =
-                element_blank(),
-
-            axis.title.x =
-                element_blank(),
-
-            axis.title.y =
-                element_blank(),
-
-            axis.text.x =
-                element_text(
-                    size = 7,
-                    vjust = -0.5
-                ),
-
-            axis.text.y =
-                element_text(
-                    angle = 90,
-                    size = 7,
-                    vjust = 1.5,
-                    hjust = 0.5
-                ),
-
-            axis.ticks =
-                element_blank(),
-
-            plot.margin =
-                margin(
-                    0,
-                    0,
-                    0,
-                    0
-                ),
-
-            legend.position =
-                "none"
-        )
-}
 
 
 # -------------------------------------------------------------------------
@@ -235,8 +134,7 @@ make_panel <- function(
         point,
         period,
         show_y = FALSE,
-        show_x = FALSE,
-        highlight = FALSE
+        show_x = FALSE
 ) {
 
     settings <-
@@ -331,8 +229,9 @@ make_panel <- function(
                 NULL
             },
 
-            # Match the zero-expansion geometry used
-            # in Figures 7 and 8.
+            # Match the zero-expansion geometry used in Figure 8.
+            # (Figure 7 uses a small multiplicative expansion,
+            # mult = 0.001; Figures 9 and 10 use mult = 0.005.)
             expand =
                 c(
                     0,
@@ -351,7 +250,7 @@ make_panel <- function(
         labs(
             title = if (period == 1) {
 
-                settings$label
+                monitoring_point_labels[[point]]
 
             } else {
 
@@ -396,22 +295,11 @@ make_panel <- function(
             # Green for open-access regimes;
             # red for restricted-access regimes.
             panel.grid.major.y =
-                if (highlight) {
-
-                    element_line(
-                        colour = "green4",
-                        linewidth = 0.3,
-                        linetype = "solid"
-                    )
-
-                } else {
-
-                    element_line(
-                        colour = "#d62728",
-                        linewidth = 0.3,
-                        linetype = "solid"
-                    )
-                }
+                element_line(
+                    colour = regime_grid_colour(period),
+                    linewidth = 0.3,
+                    linetype = "solid"
+                )
         )
 }
 
@@ -430,9 +318,6 @@ panels <- list()
 
 for (i in seq_along(points)) {
 
-    point <-
-        points[i]
-
     for (period in 1:5) {
 
         panel_name <-
@@ -446,7 +331,7 @@ for (i in seq_along(points)) {
         panels[[panel_name]] <-
             make_panel(
 
-                point = point,
+                point = points[i],
 
                 period = period,
 
@@ -456,16 +341,7 @@ for (i in seq_along(points)) {
 
                 # X-axis labels in bottom row
                 show_x =
-                    i == length(points),
-
-                # Green horizontal grid lines in
-                # access regimes 1, 3 and 5
-                highlight =
-                    period %in% c(
-                        1,
-                        3,
-                        5
-                    )
+                    i == length(points)
             )
     }
 }
@@ -475,172 +351,16 @@ for (i in seq_along(points)) {
 # Assemble figure
 # -------------------------------------------------------------------------
 
-figure <-
-    wrap_plots(
-        panels,
-        ncol = 5
-    ) +
+figure <- assemble_figure(
 
-    plot_layout() &
+    panels,
 
-    theme(
+    ncol = 5,
 
-        panel.spacing =
-            unit(
-                0,
-                "mm"
-            ),
+    y_label = "r  e  s  i  d  u  a  l      t  e  m  p  e  r  a  t  u  r  e",
 
-        plot.margin =
-            margin(
-                1,
-                1.25,
-                1.5,
-                2,
-                "mm"
-            )
-    )
-
-
-# -------------------------------------------------------------------------
-# Add figure-wide labels
-# -------------------------------------------------------------------------
-
-figure <-
-    ggdraw(
-
-        xlim =
-            c(
-                -0.01,
-                1
-            ),
-
-        ylim =
-            c(
-                -0.01,
-                1.015
-            )
-    ) +
-
-    draw_plot(
-
-        figure,
-
-        x = 0,
-
-        y = 0,
-
-        width = 1,
-
-        height = 1
-    ) +
-
-    draw_label(
-
-        "r  e  s  i  d  u  a  l      t  e  m  p  e  r  a  t  u  r  e",
-
-        x = 0,
-
-        y = 0.5,
-
-        angle = 90,
-
-        size = 9,
-
-        fontfamily = "Aptos",
-
-        fontface = "plain"
-    ) +
-
-    draw_label(
-
-        "n  o  r  m  a  l  i  s  e  d      t  i  m  e",
-
-        x = 0.515,
-
-        y = 0,
-
-        size = 9,
-
-        fontfamily = "Aptos",
-
-        fontface = "plain"
-    ) +
-
-    draw_label(
-
-        "Access regime 1",
-
-        x = 0.129,
-
-        y = 1.005,
-
-        size = 11,
-
-        fontfamily = "Aptos",
-
-        fontface = "bold"
-    ) +
-
-    draw_label(
-
-        "Access regime 2",
-
-        x = 0.3205,
-
-        y = 1.005,
-
-        size = 11,
-
-        fontfamily = "Aptos",
-
-        fontface = "bold"
-    ) +
-
-    draw_label(
-
-        "Access regime 3",
-
-        x = 0.5145,
-
-        y = 1.005,
-
-        size = 11,
-
-        fontfamily = "Aptos",
-
-        fontface = "bold"
-    ) +
-
-    draw_label(
-
-        "Access regime 4",
-
-        x = 0.707,
-
-        y = 1.005,
-
-        size = 11,
-
-        fontfamily = "Aptos",
-
-        fontface = "bold"
-    ) +
-
-    draw_label(
-
-        "Access regime 5",
-
-        x = 0.8995,
-
-        y = 1.005,
-
-        size = 11,
-
-        fontfamily = "Aptos",
-
-        fontface = "bold"
-    )
+    x_label = "n  o  r  m  a  l  i  s  e  d      t  i  m  e"
+)
 
 
 # -------------------------------------------------------------------------

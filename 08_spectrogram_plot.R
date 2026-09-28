@@ -1,24 +1,20 @@
 #####
 
 ## PLOTTING SPECTROGRAMS FOR POOLE'S CAVERN
+## PLOTTING ONLY
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 26 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
-## 01. LOAD LIBRARIES
+## 01. LOAD LIBRARIES AND HELPERS
 
 library(ggplot2)
-library(viridis)
-library(extrafont)
-library(patchwork)
-library(ggtext)
-library(cowplot)
+library(dplyr)
 
-#####
+source("plot_helpers.R")
 
-options(digits = 16)
-Sys.setlocale("LC_TIME", "English_United Kingdom")
+load_plot_fonts()
 
 #####
 
@@ -30,20 +26,10 @@ all_sensors_df <- readRDS(
 
 #####
 
-## 03. DEFINE MONITORING-POINT LABELS
+## 03. DEFINE PLOT THEME
 
-monitoring_points <- c(
-    ent = "Monitoring point 1",
-    ten = "Monitoring point 2",
-    sin = "Monitoring point 3",
-    brg = "Monitoring point 4",
-    mqs = "Monitoring point 5",
-    top = "Monitoring point 6"
-)
-
-#####
-
-## 04. DEFINE PLOT THEME
+# The spectrograms are heatmaps, so gridlines are removed and the
+# access-regime colour is shown on the panel border instead.
 
 theme_spec <- function(
         base_family = "Aptos",
@@ -140,7 +126,7 @@ theme_spec <- function(
 
 #####
 
-## 05. DEFINE PANEL SCALES
+## 04. DEFINE PANEL SCALES
 
 theme_scales <- function(df) {
 
@@ -216,7 +202,7 @@ theme_scales <- function(df) {
 
 #####
 
-## 06. CREATE INDIVIDUAL SPECTROGRAM PANEL
+## 05. CREATE INDIVIDUAL SPECTROGRAM PANEL
 
 make_panel <- function(
         sensor,
@@ -281,201 +267,81 @@ make_panel <- function(
                 } else {
 
                     element_blank()
-                }
+                },
+
+            # Green border for open-access regimes;
+            # red border for restricted-access regimes.
+            panel.border =
+                element_rect(
+                    colour = regime_grid_colour(period),
+                    fill = NA,
+                    linewidth = 0.5
+                )
         )
 
     if (period == 1) {
 
         p <- p +
             labs(
-                title = monitoring_points[sensor]
+                title = monitoring_point_labels[[sensor]]
             )
     }
-
-    # Access regimes 1, 3 and 5 use the green border.
-    # Access regimes 2 and 4 use the red border.
-
-    border_colour <- if (
-        period %in% c(1, 3, 5)
-    ) {
-        "green4"
-    } else {
-        "#d62728"
-    }
-
-    p <- p +
-        theme(
-            panel.border =
-                element_rect(
-                    colour = border_colour,
-                    fill = NA,
-                    linewidth = 0.5
-                )
-        )
 
     p
 }
 
 #####
 
-## 07. CREATE THE 30 PANELS
+## 06. CREATE THE 30 PANELS
 
 plot_list <- list()
 
-for (sensor in names(monitoring_points)) {
+sensors <- names(monitoring_point_labels)
+
+for (i in seq_along(sensors)) {
 
     for (period in 1:5) {
 
-        # Y-axis labels on Access Regime 1 (first column)
-        show_y <- period == 1
-
-        # X-axis labels on Monitoring Point 6 (bottom row)
-        show_x <- sensor == "top"
-
-        panel_name <- paste0(
+        plot_list[[paste0(
             "plot_",
-            match(
-                sensor,
-                names(monitoring_points)
-            ),
+            i,
             "_",
             period
-        )
-
-        plot_list[[panel_name]] <- make_panel(
-            sensor = sensor,
+        )]] <- make_panel(
+            sensor = sensors[i],
             period = period,
-            show_x = show_x,
-            show_y = show_y
+
+            # X-axis labels on Monitoring Point 6 (bottom row)
+            show_x = i == length(sensors),
+
+            # Y-axis labels on Access Regime 1 (first column)
+            show_y = period == 1
         )
     }
 }
 
 #####
 
-## 08. ARRANGE THE 30 PANELS
+## 07. ASSEMBLE FIGURE
 
-final_spectrograms <- wrap_plots(
+final_spectrograms <- assemble_figure(
+
     plot_list,
-    ncol = 5
-) +
 
-    plot_layout() &
+    ncol = 5,
 
-    theme(
-        panel.spacing =
-            unit(
-                0,
-                "mm"
-            ),
+    y_label = "f  r  e  q  u  e  n  c  i  e  s,     c  p  d",
 
-        plot.margin =
-            margin(
-                1,
-                1.25,
-                1.5,
-                2,
-                "mm"
-            )
-    )
+    x_label = "n  o  r  m  a  l  i  s  e  d      t  i  m  e"
+)
 
 #####
 
-## 09. ADD FIGURE-WIDE LABELS
-
-final_spectrograms <-
-
-    ggdraw(
-        xlim = c(
-            -0.01,
-            1
-        ),
-
-        ylim = c(
-            -0.01,
-            1.015
-        )
-    ) +
-
-    draw_plot(
-        final_spectrograms,
-        x = 0,
-        y = 0,
-        width = 1,
-        height = 1
-    ) +
-
-    draw_label(
-        "f  r  e  q  u  e  n  c  i  e  s,     c  p  d",
-        x = 0,
-        y = 0.5,
-        angle = 90,
-        size = 9,
-        fontfamily = "Aptos",
-        fontface = "plain"
-    ) +
-
-    draw_label(
-        "n  o  r  m  a  l  i  s  e  d      t  i  m  e",
-        x = 0.515,
-        y = 0,
-        size = 9,
-        fontfamily = "Aptos",
-        fontface = "plain"
-    ) +
-
-    draw_label(
-        "Access regime 1",
-        x = 0.129,
-        y = 1.005,
-        size = 11,
-        fontfamily = "Aptos",
-        fontface = "bold"
-    ) +
-
-    draw_label(
-        "Access regime 2",
-        x = 0.3205,
-        y = 1.005,
-        size = 11,
-        fontfamily = "Aptos",
-        fontface = "bold"
-    ) +
-
-    draw_label(
-        "Access regime 3",
-        x = 0.5145,
-        y = 1.005,
-        size = 11,
-        fontfamily = "Aptos",
-        fontface = "bold"
-    ) +
-
-    draw_label(
-        "Access regime 4",
-        x = 0.707,
-        y = 1.005,
-        size = 11,
-        fontfamily = "Aptos",
-        fontface = "bold"
-    ) +
-
-    draw_label(
-        "Access regime 5",
-        x = 0.8995,
-        y = 1.005,
-        size = 11,
-        fontfamily = "Aptos",
-        fontface = "bold"
-    )
-
-#####
-
-## 10. SAVE FIGURE
+## 08. SAVE FIGURE
 
 ggsave(
-    "figs/08_spectrograms.tif",
-    final_spectrograms,
+    filename = "figs/08_spectrograms.tif",
+    plot = final_spectrograms,
     width = 174,
     height = 200.1,
     units = "mm",

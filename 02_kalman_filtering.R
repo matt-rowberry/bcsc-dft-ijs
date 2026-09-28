@@ -2,17 +2,15 @@
 
 ## KALMAN FILTERING THE TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 25 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
 ## 01. LOAD LIBRARIES
 
 library(KFAS)
-library(future.apply)
-library(openxlsx)
-library(writexl)
 library(future)
+library(future.apply)
 
 #####
 
@@ -22,13 +20,17 @@ library(future)
 # temperature series independently using the Kalman filter and
 # smoother.
 #
-# The function returns:
-#   - original observations
-#   - fitted values
-#   - recursive residuals
-#   - smoothed signal
-#   - estimated observation disturbances
-#   - estimated state disturbances
+# The function returns a list with two data frames:
+#
+#   all       - for each monitoring point: original observations,
+#               fitted values, recursive residuals, smoothed signal,
+#               estimated observation disturbances and estimated
+#               state disturbances
+#   residuals - dttm, period and the recursive residual for each
+#               monitoring point only
+#
+# Only the residuals are used in the subsequent analysis (see
+# section 07).
 #
 # Parallel processing is used to fit the monitoring points
 # independently.
@@ -54,9 +56,16 @@ kalman_filter_wide_parallel <- function(
         period = period
     )
 
-    plan(
+    # Restore the previous future plan when the function exits.
+
+    oplan <- plan(
         multisession,
         workers = workers
+    )
+
+    on.exit(
+        plan(oplan),
+        add = TRUE
     )
 
     results_list <- future_lapply(
@@ -82,9 +91,15 @@ kalman_filter_wide_parallel <- function(
                 )
             )
 
-            residual <- residuals(
-                kfs,
-                type = "recursive"
+            # residuals() returns a time-series (ts) object. It is
+            # converted to a plain numeric vector so that the saved
+            # data frame holds ordinary numeric columns.
+
+            residual <- as.numeric(
+                residuals(
+                    kfs,
+                    type = "recursive"
+                )
             )
 
             fitted <- y - residual
@@ -167,16 +182,8 @@ kalman_filter_wide_parallel <- function(
 
 ## 03. IMPORT IMPUTED TEMPERATURE DATA
 
-df <- read.xlsx(
-    "data/all_sites_sr_imp.xlsx"
-)
-
-# Convert Excel datetime values to POSIXct.
-
-df$dttm <- as.POSIXct(
-    (df$dttm - 25569) * 86400,
-    origin = "1970-01-01",
-    tz = "UTC"
+df <- readRDS(
+    "data/all_sites_sr_imp.rds"
 )
 
 dttm <- df$dttm
@@ -240,35 +247,27 @@ model_fn <- function(y) {
 
 ## 06. FIT, FILTER AND SMOOTH THE SIX MONITORING-POINT SERIES
 
-# Initial values for the four variance parameters estimated
-# by fitSSM() are defined in kalman_filter_wide_parallel().
-#
-# Parallel processing is used because each monitoring-point
-# series is modelled independently.
-
-workers <- max(
-    1,
-    future::availableCores() - 1
-)
+# Initial values for the variance parameters estimated by
+# fitSSM() and the number of parallel workers are defined in
+# kalman_filter_wide_parallel(). Parallel processing is used
+# because each monitoring-point series is modelled independently.
 
 kalman_results <- kalman_filter_wide_parallel(
     df,
     model_fn,
     dttm = dttm,
-    period = period,
-    workers = workers
+    period = period
 )
 
 #####
 
-## 07. WRITE RESULTS
+## 07. WRITE RESIDUALS
 
-write_xlsx(
-    kalman_results$all,
-    path = "data/kalman_results.xlsx"
-)
+# Only the residuals are needed by the subsequent scripts, so only
+# these are saved. The complete set of fitted quantities remains
+# available in kalman_results$all if it is required for inspection.
 
-write_xlsx(
+saveRDS(
     kalman_results$residuals,
-    path = "data/kalman_results_residuals.xlsx"
+    "data/kalman_results_residuals.rds"
 )

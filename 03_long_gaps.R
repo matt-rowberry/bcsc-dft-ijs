@@ -2,33 +2,21 @@
 
 ## PROCESSING LONG RUNS IN THE RESIDUAL DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 25 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
 ## 01. LOAD LIBRARIES
 
 library(lubridate)
-library(writexl)
-library(openxlsx)
 
 #####
 
 ## 02. READ RESIDUAL DATA AND INITIALISE FIRST OBSERVATIONS
 
-df <- read.xlsx(
-    "data/kalman_results_residuals.xlsx"
+df <- readRDS(
+    "data/kalman_results_residuals.rds"
 )
-
-# Convert Excel datetime values to POSIXct.
-
-df$dttm <- as.POSIXct(
-    (df$dttm - 25569) * 86400,
-    origin = "1970-01-01",
-    tz = "UTC"
-)
-
-options(digits = 16)
 
 # The first recursive residual produced by KFAS is set to zero
 # because it is affected by the initialisation of the state-space
@@ -50,6 +38,9 @@ df[1, 3:ncol(df)] <- 0
 # This prevents a long missing interval from being interpreted as
 # a sequence of residual observations while retaining a complete
 # regular time series for subsequent processing.
+#
+# Each residual series is processed independently, so the days
+# set to zero can differ between monitoring points.
 
 replace_missing_days <- function(
         vec,
@@ -129,7 +120,7 @@ df[residual_cols] <- lapply(
 
 ## 05. SAVE RESULTS
 
-write_xlsx(
+saveRDS(
     df,
-    path = "data/kalman_residuals_full_imp.xlsx"
+    "data/kalman_residuals_full_imp.rds"
 )

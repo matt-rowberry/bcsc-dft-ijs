@@ -3,7 +3,7 @@
 ## FFT DATA PROCESSING FOR FIGURE 7
 ## TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 26 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
@@ -14,24 +14,13 @@ library(purrr)
 
 #####
 
-## 02. SET OPTIONS
+## 02. LOAD ANALYSIS FUNCTIONS
 
-Sys.setlocale(
-    "LC_TIME",
-    "English_United Kingdom"
-)
-
-options(digits = 16)
+source("analysis_functions.R")
 
 #####
 
-## 03. LOAD BANDPASS FUNCTIONS
-
-source("bandpass_functions.R")
-
-#####
-
-## 04. LOAD PREPROCESSED DATA
+## 03. LOAD PREPROCESSED DATA
 
 input_file <- "data/full_day_night_time_series.rds"
 
@@ -41,7 +30,7 @@ data <- readRDS(input_file)
 
 #####
 
-## 05. PREPARE THE FIVE ACCESS REGIMES
+## 04. PREPARE THE FIVE ACCESS REGIMES
 
 # The preprocessing pipeline produces:
 #
@@ -52,7 +41,7 @@ data <- readRDS(input_file)
 #   full_period_5
 #
 # The original Figure 7 analysis used the short monitoring-point
-# names expected by bandpass_fft_daynight() and the plotting code.
+# names expected by bandpass_by_daynight() and the plotting code.
 #
 # The current preprocessing file stores these measurements as:
 #
@@ -92,13 +81,13 @@ names(df_list) <- paste0(
 
 #####
 
-## 06. SET SAMPLING FREQUENCY
+## 05. SET SAMPLING FREQUENCY
 
 fs_cpd <- 144
 
 #####
 
-## 07. EXTRACT FFT SERIES
+## 06. EXTRACT FFT SERIES
 
 extract_series <- function(bandpass_out) {
 
@@ -135,7 +124,7 @@ extract_series <- function(bandpass_out) {
 
 #####
 
-## 08. PROCESS ALL FIVE ACCESS REGIMES
+## 07. PROCESS ALL FIVE ACCESS REGIMES
 
 process_all_dfs <- function(
         df_list,
@@ -146,7 +135,7 @@ process_all_dfs <- function(
 
     map(
         df_list,
-        ~ bandpass_fft_daynight(
+        ~ bandpass_by_daynight(
             .x,
             timestamp_col = "dttm",
             fs_cpd = fs_cpd,
@@ -164,7 +153,7 @@ all_bandpass_series <- process_all_dfs(
 
 #####
 
-## 09. NORMALISE BANDPASS SERIES
+## 08. NORMALISE BANDPASS SERIES
 
 normalize_bandpass_series <- function(
         all_series,
@@ -240,7 +229,7 @@ normalize_bandpass_series <- function(
 
 #####
 
-## 10. APPLY NORMALISATION
+## 09. APPLY NORMALISATION
 
 df <- normalize_bandpass_series(
     all_bandpass_series
@@ -248,7 +237,7 @@ df <- normalize_bandpass_series(
 
 #####
 
-## 11. SAVE RESULTS FOR FIGURE 7
+## 10. SAVE RESULTS FOR FIGURE 7
 
 saveRDS(
     df,

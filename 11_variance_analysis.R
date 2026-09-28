@@ -5,7 +5,6 @@
 
 library(dplyr)
 library(tidyr)
-library(openxlsx)
 
 # -------------------------------------------------------------------------
 # DATA
@@ -15,12 +14,20 @@ df_ifft <- readRDS(
     "data/kalman_filtered_multiband.rds"
 )
 
-df_res <- read.xlsx(
-    "data/kalman_residuals_full_imp.xlsx"
+df_res <- readRDS(
+    "data/kalman_residuals_full_imp.rds"
 )
 
-# The residual Excel file contains period and the six residual series.
-# Timestamp and day/night classification are aligned directly with df_ifft.
+# The residual file contains dttm, period and the six residual series.
+# Timestamp and day/night classification are aligned directly with
+# df_ifft. Both objects are derived from the same residual file, so
+# the rows correspond one-to-one; this is checked before aligning.
+
+stopifnot(
+    nrow(df_res) == nrow(df_ifft),
+    all(df_res$dttm == df_ifft$timestamp),
+    all(df_res$period == df_ifft$period)
+)
 
 df_res$timestamp <- df_ifft$timestamp
 df_res$daynight <- df_ifft$daynight
@@ -50,6 +57,10 @@ res_cols <- c(
 # -------------------------------------------------------------------------
 # RMS SUMMARY
 # -------------------------------------------------------------------------
+
+# Exact zeros in the reconstructed series mark days that were set to
+# zero in 03_long_gaps.R (long runs of missing data). They are
+# converted to NA here so that they are excluded from the summaries.
 
 rms_summary <- df_ifft %>%
     pivot_longer(

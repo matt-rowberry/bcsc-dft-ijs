@@ -2,7 +2,7 @@
 
 ## PREPARING SEGMENT DATA FOR FIGURE 10
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 27 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
@@ -14,6 +14,9 @@ library(dplyr)
 
 ## 02. LOAD DATA
 
+# Per-segment minimum and maximum of the reconstructed signal,
+# produced by 05_multiband_reconstruction.R.
+
 df <- readRDS(
     "data/kalman_filtered_multiband_segments.rds"
 )
@@ -21,6 +24,10 @@ df <- readRDS(
 #####
 
 ## 03. PREPARE DATA
+
+# Each access regime is identified by the range of day/night segments
+# it contains. The boundary segments (311, 557, 773 and 1161) belong
+# to both of the adjacent regimes, as in the original analysis.
 
 figure_10 <- bind_rows(
     df %>%

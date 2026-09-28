@@ -6,6 +6,10 @@ library(dplyr)
 library(ggplot2)
 library(patchwork)
 
+source("plot_helpers.R")
+
+load_plot_fonts()
+
 # -------------------------------------------------------------------------
 # DATA
 # -------------------------------------------------------------------------
@@ -21,6 +25,9 @@ variance_explained <- figure_11$variance_explained
 # -------------------------------------------------------------------------
 # MONITORING POINT LABELS
 # -------------------------------------------------------------------------
+
+# Listed in this order so that monitoring point 1 appears at the
+# top of each heatmap.
 
 mp_levels <- c(
     "top",
@@ -121,6 +128,9 @@ theme_ste_heatmap <- function(
             )
         )
 }
+
+# The heatmaps do not add this theme themselves; it is applied to
+# every plot in the session.
 
 theme_set(theme_ste_heatmap())
 

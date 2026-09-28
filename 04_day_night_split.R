@@ -2,42 +2,19 @@
 
 ## ORGANISING DATAFRAMES FOR THE TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 25 SEPTEMBER 2026
+## LAST MODIFIED 28 SEPTEMBER 2026
 
 #####
 
-## 01. LOAD LIBRARIES
+## 01. LOAD DATA
 
-library(openxlsx)
-library(lubridate)
-
-#####
-
-options(digits = 16)
-Sys.setlocale("LC_TIME", "English_United Kingdom")
-
-#####
-
-## 02. LOAD DATA
-
-df <- read.xlsx(
-    "data/kalman_residuals_full_imp.xlsx"
-)
-
-df$dttm <- as.POSIXct(
-    (df$dttm - 25569) * 86400,
-    origin = "1970-01-01",
-    tz = "UTC"
-)
-
-df$dttm <- round_date(
-    df$dttm,
-    unit = "10 mins"
+df <- readRDS(
+    "data/kalman_residuals_full_imp.rds"
 )
 
 #####
 
-## 03. CREATE ALIGNED DAY, NIGHT AND FULL-PERIOD DATASETS
+## 02. CREATE ALIGNED DAY, NIGHT AND FULL-PERIOD DATASETS
 
 # Day and night intervals are defined using the access times
 # applied throughout the study:
@@ -90,17 +67,10 @@ split_day_night_period <- function(
 
         for (col in cols_to_mask) {
 
-            col_type <- class(df[[col]])[1]
+            # Assigning NA keeps the type of the column, so no
+            # class-specific handling is needed.
 
-            df_masked[[col]][!mask] <- switch(
-                col_type,
-                integer = as.integer(NA),
-                numeric = as.numeric(NA),
-                character = as.character(NA),
-                factor = NA,
-                logical = as.logical(NA),
-                df_masked[[col]][!mask]
-            )
+            df_masked[[col]][!mask] <- NA
         }
 
         df_masked
@@ -163,7 +133,7 @@ split_day_night_period <- function(
 
 #####
 
-## 04. APPLY FUNCTION AND SAVE RESULTS
+## 03. APPLY FUNCTION AND SAVE RESULTS
 
 result <- split_day_night_period(df)
 
