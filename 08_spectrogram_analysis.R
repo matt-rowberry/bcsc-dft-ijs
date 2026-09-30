@@ -2,30 +2,39 @@
 
 ## CALCULATING SPECTROGRAMS FOR POOLE'S CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 28 SEPTEMBER 2026
+## LAST MODIFIED 29 SEPTEMBER 2026
 
 #####
 
-## 01. LOAD LIBRARIES
+# ---------------------------------------------------------------------------
+# Packages
+# ---------------------------------------------------------------------------
 
 library(dplyr)
 library(phonTools)
 library(seewave)
+library(future)
+library(future.apply)
 
-#####
+# ---------------------------------------------------------------------------
+# Input and output
+# ---------------------------------------------------------------------------
 
-## 02. LOAD DATA
+input_file <- "data/kalman_residuals_full_imp.rds"
+output_file <- "data/figure_08_spectrograms.rds"
 
-df <- readRDS(
-    "data/kalman_residuals_full_imp.rds"
-)
+# ---------------------------------------------------------------------------
+# Load data
+# ---------------------------------------------------------------------------
 
-#####
+df <- readRDS(input_file)
 
-## 03. CREATE SPECTROGRAM INPUT DATAFRAME
+# ---------------------------------------------------------------------------
+# Create spectrogram input dataframe
+# ---------------------------------------------------------------------------
 
-# The six monitoring-point residual series are used as the
-# input signals for the spectrogram analysis.
+# The six monitoring-point residual series are used as the input
+# signals for the spectrogram analysis.
 
 df_spec <- data.frame(
     ent = df$ent_residual,
@@ -36,101 +45,102 @@ df_spec <- data.frame(
     top = df$top_residual
 )
 
-# Missing values are replaced with zero before calculating
-# the spectrograms, as in the original analysis.
+# Missing values are replaced with zero before calculating the
+# spectrograms, as in the original analysis.
 
 df_spec[is.na(df_spec)] <- 0
 
-#####
+# ---------------------------------------------------------------------------
+# Convert spectrogram output to a dataframe
+# ---------------------------------------------------------------------------
 
-## 04. CONVERT SPECTROGRAM OUTPUT TO A DATAFRAME
-
+#' Reshape a `seewave::spectro()` result into long form.
+#'
+#' @param spec Output of `spectro()`.
+#' @return A data frame with `time`, `frequency` and `amplitude`.
 spectro_to_df <- function(spec) {
-
     data.frame(
-        time = rep(
-            spec$time,
-            each = length(spec$freq)
-        ),
-
-        frequency = rep(
-            spec$freq,
-            times = length(spec$time)
-        ),
-
-        amplitude = as.vector(
-            spec$amp
-        )
+        time = rep(spec$time, each = length(spec$freq)),
+        frequency = rep(spec$freq, times = length(spec$time)),
+        amplitude = as.vector(spec$amp)
     )
 }
 
-#####
-
-## 05. CALCULATE SPECTROGRAMS
+# ---------------------------------------------------------------------------
+# Calculate spectrograms
+# ---------------------------------------------------------------------------
 
 # The residual series are treated as sound objects so that the
-# spectrogram functions can be used. A sampling frequency of
-# 144000 is used, i.e. 144 observations per day (144 cpd)
-# multiplied by 1000. Frequencies are therefore reported in cycles
-# per day (cpd), and one day of data lasts 0.001 s on the time
-# axis of the sound object.
+# spectrogram functions can be used. A sampling frequency of 144000 is
+# used, i.e. 144 observations per day (144 cpd) multiplied by 1000.
+# Frequencies are therefore reported in cycles per day (cpd), and one
+# day of data lasts 0.001 s on the time axis of the sound object.
+#
+# Each sensor's spectrogram (zp = length * 4 on a ~105,000-row series)
+# is expensive and fully independent of the others, so the six sensors
+# are processed in parallel.
 
-sensor_names <- names(df_spec)
+#' Spectrogram for one sensor, as a long data frame.
+#'
+#' @param sensor Column name in `df_spec`.
+#' @param df_spec Data frame of per-sensor residual series.
+#' @return A data frame with `time`, `frequency`, `amplitude` and
+#'   `sensor`, with amplitude clipped to `[-60, 0]` dB.
+spectrogram_for_sensor <- function(sensor, df_spec) {
+    sound_obj <- makesound(df_spec[[sensor]], fs = 144000)
 
-spectrogram_list <- lapply(
-    sensor_names,
-    function(sensor) {
+    spec <- spectro(
+        sound_obj,
+        wl = 54,
+        wn = "bartlett",
+        zp = length(df_spec[[sensor]]) * 4,
+        ovlp = 0,
+        dB = "max0",
+        flimd = c(45, 51),
+        plot = FALSE
+    )
 
-        sound_obj <- makesound(
-            df_spec[[sensor]],
-            fs = 144000
-        )
+    spec_df <- spectro_to_df(spec)
 
-        spec <- spectro(
-            sound_obj,
-            wl    = 54,
-            wn    = "bartlett",
-            zp    = length(df_spec[[sensor]]) * 4,
-            ovlp  = 0,
-            dB    = "max0",
-            flimd = c(45, 51),
-            plot  = FALSE
-        )
+    # Limit amplitudes to the range used in the original spectrogram analysis.
+    spec_df$amplitude <- pmin(pmax(spec_df$amplitude, -60), 0)
+    spec_df$sensor <- sensor
+    spec_df
+}
 
-        spec_df <- spectro_to_df(
-            spec
-        )
+#' Compute every sensor's spectrogram in parallel.
+#'
+#' Each sensor's spectrogram is independent of the others, so they are
+#' distributed across worker processes with `future_lapply()`.
+#'
+#' @param df_spec Data frame of per-sensor residual series.
+#' @param workers Number of parallel workers.
+#' @return A single long data frame (all sensors row-bound).
+spectrograms_parallel <- function(df_spec, workers = max(1, availableCores() - 1)) {
+    # Restore the previous future plan when this function returns.
+    oplan <- plan(multisession, workers = workers)
+    on.exit(plan(oplan), add = TRUE)
 
-        # Limit amplitudes to the range used in the original
-        # spectrogram analysis.
+    spectrogram_list <- future_lapply(
+        names(df_spec),
+        spectrogram_for_sensor,
+        df_spec = df_spec
+    )
 
-        spec_df$amplitude <- pmin(
-            pmax(
-                spec_df$amplitude,
-                -60
-            ),
-            0
-        )
+    bind_rows(spectrogram_list)
+}
 
-        spec_df$sensor <- sensor
+all_sensors_df <- spectrograms_parallel(df_spec)
 
-        spec_df
-    }
-)
+# ---------------------------------------------------------------------------
+# Assign access regimes to spectrogram time
+# ---------------------------------------------------------------------------
 
-all_sensors_df <- bind_rows(
-    spectrogram_list
-)
-
-#####
-
-## 06. ASSIGN ACCESS REGIMES TO SPECTROGRAM TIME
-
-# The spectrogram time axis is measured in seconds of the sound
-# object (see section 05), so it equals the number of days since
-# the start of the record (2019-10-16) divided by 1000. The
-# breakpoints below are the access-regime boundaries expressed on
-# this axis:
+# The spectrogram time axis is measured in seconds of the sound object
+# (see section "Calculate spectrograms" above), so it equals the
+# number of days since the start of the record (2019-10-16) divided by
+# 1000. The breakpoints below are the access-regime boundaries
+# expressed on this axis:
 #
 #   0.000  start of record            (2019-10-16)
 #   0.155  regime 1 -> 2, 155 days in (2020-03-19)
@@ -141,29 +151,15 @@ all_sensors_df <- bind_rows(
 
 all_sensors_df$period <- cut(
     all_sensors_df$time,
-
-    breaks = c(
-        0,
-        0.155,
-        0.278,
-        0.386,
-        0.580,
-        0.731
-    ),
-
+    breaks = c(0, 0.155, 0.278, 0.386, 0.580, 0.731),
     labels = 1:5,
     include.lowest = TRUE,
     right = TRUE
 ) %>%
     as.integer()
 
-#####
+# ---------------------------------------------------------------------------
+# Save results
+# ---------------------------------------------------------------------------
 
-## 07. SAVE RESULTS
-
-saveRDS(
-    all_sensors_df,
-    "data/figure_08_spectrograms.rds"
-)
-
-#####
+saveRDS(all_sensors_df, output_file)
