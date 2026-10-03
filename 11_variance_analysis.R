@@ -3,12 +3,13 @@
 ## FIGURE 11: RMS AMPLITUDE AND VARIANCE EXPLAINED
 ## DATA ANALYSIS
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
-# Prepares the data used by Figure 11. Plotting is handled separately
-# in 11_variance_plot.R.
+# Prepares the data used by Figure 11, and writes the same values as a
+# CSV table alongside the figure. Plotting is handled separately in
+# 11_variance_plot.R.
 
 # ---------------------------------------------------------------------------
 # Packages
@@ -24,6 +25,7 @@ library(tidyr)
 ifft_file <- "data/kalman_filtered_multiband.rds"
 residuals_file <- "data/kalman_residuals_full_imp.rds"
 output_file <- "data/figure_11_heatmaps.rds"
+table_file <- "figs/11_variance_values.csv"
 
 ifft_cols <- c(
     "ent_residual_nb3", "ten_residual_nb3", "sin_residual_nb3",
@@ -104,3 +106,30 @@ variance_explained <- combined %>%
 
 figure_11 <- list(rms = rms_summary, variance_explained = variance_explained)
 saveRDS(figure_11, output_file)
+
+# The values plotted in Figure 11 as one table, for readers without R:
+# one row per monitoring point, access regime and day/night period.
+# Empty cells are combinations with no data (MP6 before August 2020;
+# MP4 in regime 5).
+
+mp_numbers <- c(ent = 1, ten = 2, sin = 3, brg = 4, mqs = 5, top = 6)
+
+figure_11_table <- full_join(
+    rms_summary, variance_explained,
+    by = c("period", "daynight", "monitoring_point")
+) %>%
+    transmute(
+        # site_code first: transmute() evaluates in order, and the next
+        # line replaces monitoring_point.
+        site_code = monitoring_point,
+        monitoring_point = paste0("MP", mp_numbers[monitoring_point]),
+        access_regime = period,
+        day_night = daynight,
+        rms_amplitude_degC = signif(rms, 6),
+        variance_explained_pct = signif(variance_explained, 6)
+    ) %>%
+    mutate(across(c(rms_amplitude_degC, variance_explained_pct), ~ ifelse(is.nan(.x), NA, .x))) %>%
+    relocate(monitoring_point) %>%
+    arrange(monitoring_point, access_regime, day_night)
+
+write.csv(figure_11_table, table_file, row.names = FALSE, na = "")

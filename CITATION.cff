@@ -13,13 +13,28 @@ abstract: >-
 authors:
   - family-names: Rowberry
     given-names: Matt
-    affiliation: Institute of Rock Structure and Mechanics, Czech Academy of Sciences
-    # orcid: https://orcid.org/0000-0000-0000-0000
-  # TODO: co-authors, if the archive should list them
+    affiliation: >-
+      Institute of Rock Structure and Mechanics, Czech Academy of
+      Sciences, Prague, Czech Republic
+    email: rowberry@irsm.cas.cz
+    orcid: https://orcid.org/0000-0003-1300-437X
+  - family-names: Gunn
+    given-names: John
+    affiliation: >-
+      School of Geography, Earth and Environmental Sciences, University
+      of Birmingham, Birmingham, United Kingdom
+    email: j.gunn.1@bham.ac.uk
+    orcid: https://orcid.org/0000-0002-1030-8135
+  - family-names: Smith
+    given-names: Andrew
+    affiliation: >-
+      National Environmental Isotope Facility, British Geological
+      Survey, Nottingham, United Kingdom
+    email: andrews@bgs.ac.uk
+    orcid: https://orcid.org/0000-0002-7658-6234
 repository-code: https://github.com/matt-rowberry/bcsc-dft-ijs
-license: MIT  # TODO: confirm
-version: 1.0.0  # TODO: confirm first release tag
-# date-released: 2026-MM-DD
+license: MIT
+version: 1.0.0
 keywords:
   - cave microclimate
   - show cave
@@ -28,13 +43,18 @@ keywords:
   - spectral analysis
   - state-space model
   - Poole's Cavern
-# TODO: once the manuscript has a DOI, uncomment and fill in:
+# Add on release: date-released: YYYY-MM-DD
+# Add once the manuscript has a DOI:
 # preferred-citation:
 #   type: article
 #   title: "Hidden thermal signatures reveal the microclimatic influence of scheduled cave tourism"
 #   authors:
 #     - family-names: Rowberry
 #       given-names: Matt
+#     - family-names: Gunn
+#       given-names: John
+#     - family-names: Smith
+#       given-names: Andrew
 #   journal: ""
 #   year: 2026
 #   doi: ""

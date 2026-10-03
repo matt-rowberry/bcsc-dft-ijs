@@ -1,7 +1,7 @@
 # Notes on the analysis
 
-Details that are easy to misread as bugs. Each matches the published
-figures; changing any of them would change the results.
+Details that are easy to misread as bugs. Each is reflected in the
+figures in the paper; changing any of them would change the results.
 
 ## 1. Day and night are defined in UK local time
 
@@ -20,14 +20,13 @@ or night. The same function is used for Figure 6 (`04_day_night_split.R`)
 and for Figures 7, 9, 10 and 11 (`bandpass_by_daynight()` and
 `reconstruct_multiband_segments()`).
 
-The published figures (before October 2026) applied a fixed
-09:30–17:30 window in UTC, so during BST the first hour of opening was
-counted as night. They also treated the 17:30 sample as day in
-Figure 6 but as night elsewhere.
-
-The 09:30–17:20 window is a best estimate: opening hours changed during
-the COVID-19 restrictions, and the data suggest shorter opening hours
-in winter (visitor-related fluctuations from about 10:00 to 16:00).
+The 09:30–17:20 window is a best estimate. After the first reopening,
+tours of 10–12 people started every 30 minutes from 09:30 to 16:30
+(Gunn et al., 2021), so visitors were in the cave until about 17:15;
+the visitor-related fluctuations in the data match this. Opening hours
+changed during the COVID-19 restrictions, however, and the data suggest
+shorter opening hours in winter (fluctuations from about 10:00 to
+16:00).
 The window is set in one place (`day_first_local`, `day_last_local`).
 
 Access-regime boundaries (`01_imputing.R`) fall at midnight UTC, i.e.
@@ -94,3 +93,9 @@ two regimes.
   `New names: ...1 ...` message from building a data frame from
   unnamed columns; the columns are renamed on the next line and the
   message can be ignored.
+
+## Reference
+
+Gunn, J., Rowberry, M. and Smith, A. (2021). Exploring the impact of
+tourists on cave air temperatures: a Covid-19 case study from Poole's
+Cavern, Derbyshire, UK. *Cave and Karst Science* 48(3), 121–128.

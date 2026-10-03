@@ -34,14 +34,15 @@ about 28.5–31.6 minutes).
 ```
 measured/        Six temperature records as downloaded, one per monitoring point (input)
 data/            Intermediate .rds files (created by the pipeline)
-figs/            Figures 6–11 as 600 dpi .tif files (created by the pipeline)
+figs/            Figures 6–11 as 600 dpi .tif files, and the values of Figure 11
+                 as 11_variance_values.csv (created by the pipeline)
 logs/            Per-script logs from run_all.R (created by the pipeline)
 
 00_ … 11_*.R     Pipeline scripts, run in the order below
 analysis_functions.R   Shared band-pass and reconstruction functions
 plot_helpers.R         Shared plotting theme, labels and layout
 run_all.R              Runs the whole pipeline in order
-session_info.txt       R and package versions used for the published figures
+session_info.txt       R and package versions used for the figures in the paper
 ```
 
 ## Pipeline
@@ -108,7 +109,7 @@ install.packages(c("dplyr", "extrafont", "future", "future.apply",
                    "phonTools", "purrr", "readr", "seewave", "tidyr"))
 ```
 
-The exact versions used for the published figures are listed in
+The exact versions used for the figures in the paper are listed in
 `session_info.txt`. `phonTools` and `seewave` (Figure 8) are the most
 likely to change behaviour between versions.
 
@@ -138,12 +139,8 @@ and package versions are unchanged; the folder is deleted when script
 The figures use the Aptos font. On Windows, `plot_helpers.R` registers
 it with `extrafont` the first time a plotting script runs, which can
 take several minutes once. On other platforms this step is skipped and
-ggplot2 falls back to its default font, so the figures differ in
-typeface only.
-
-The figures produced here plot exactly the same data as the published
-figures, but their layout differs slightly: headings and axis labels now
-have space of their own, so the panels are a few millimetres smaller.
+ggplot2 falls back to its default font, so the figures differ from
+those in the paper in typeface only.
 
 ## Data
 
@@ -152,4 +149,10 @@ non-obvious details of the analysis in `NOTES.md`.
 
 ## Licence
 
-<!-- TODO: code licence (e.g. MIT) in LICENSE; data terms in measured/README.md -->
+The code, documentation and figures in this repository are released
+under the MIT licence (see `LICENSE`).
+
+The temperature records in `measured/` are not covered by that licence.
+They come from the British Cave Science Centre, which makes them openly
+available; please cite the BCSC as their source (see
+`measured/README.md`).

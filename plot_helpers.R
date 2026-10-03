@@ -7,11 +7,7 @@
 #####
 
 # Shared by the figure-plotting scripts 06_ts_plot.R to 11_variance_plot.R.
-# Each script loads this file with source("plot_helpers.R"). Panel
-# content and styling are unchanged from the published figures. The
-# figure assembly (assemble_figure()) was rebuilt with patchwork in
-# October 2026 so that headings and axis labels are no longer clipped
-# at the figure edges; the panels are therefore slightly smaller.
+# Each script loads this file with source("plot_helpers.R").
 #
 # Functions here call ggplot2, patchwork and grid with `::`, so the
 # calling script needs only ggplot2 attached.
@@ -169,9 +165,8 @@ assemble_figure <- function(
     )
 
     # Spacing around each panel. Tick labels at the ends of an axis
-    # extend beyond the panel edge, so the margins (wider than the
-    # published figures' 1, 1.25, 1.5, 2 mm) keep the end labels of
-    # neighbouring panels clearly apart.
+    # extend beyond the panel edge, so the margins keep the end labels
+    # of neighbouring panels clearly apart.
     panels <- lapply(panels, function(p) {
         p + ggplot2::theme(
             panel.spacing = ggplot2::unit(0, "mm"),
