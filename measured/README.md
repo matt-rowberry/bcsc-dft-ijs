@@ -93,4 +93,4 @@ the British Cave Monitoring Centre. *CREG Journal* 108, 17–20.
 
 Gunn, J., Rowberry, M. and Smith, A. (2021). Exploring the impact of
 tourists on cave air temperatures: a Covid-19 case study from Poole's
-Cavern, Derbyshire, UK. *Cave and Karst Science* 48(3), 121–128.
+Cavern, Derbyshire, UK. *Cave and Karst Science* 48, 121–128.

@@ -3,7 +3,7 @@
 ## FFT DATA PROCESSING FOR FIGURE 7
 ## TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
@@ -38,20 +38,10 @@ fs_cpd <- 144
 #   full_period_4
 #   full_period_5
 #
-# The original Figure 7 analysis used the short monitoring-point names
-# expected by bandpass_by_daynight() and the plotting code.
-#
-# The current preprocessing file stores these measurements as:
-#
-#   ent_residual
-#   ten_residual
-#   sin_residual
-#   brg_residual
-#   mqs_residual
-#   top_residual
-#
-# Therefore only the column names are changed here. The data themselves
-# are unchanged.
+# Each access regime's residuals are stored as ent_residual,
+# ten_residual, ... top_residual. The Figure 7 code refers to the
+# monitoring points by their short codes (ent, ten, sin, brg, mqs, top),
+# so the columns are renamed here; the data are not changed.
 
 #' Rename one access regime's residual columns to short site codes.
 #'

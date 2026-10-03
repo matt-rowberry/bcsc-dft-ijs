@@ -28,8 +28,9 @@ df <- readRDS(input_file)
 # ---------------------------------------------------------------------------
 
 # Each access regime is identified by the range of day/night segments
-# it contains. The boundary segments (311, 557, 773 and 1161) belong
-# to both of the adjacent regimes, as in the original analysis.
+# it contains. The boundary segments (311, 557, 773 and 1161) are the
+# nights spanning each change of regime, and are assigned to both of
+# the adjacent regimes.
 #
 # These numbers assume one day segment per day, so that the record of
 # 731 days has 1463 segments (starting and ending with a night) and

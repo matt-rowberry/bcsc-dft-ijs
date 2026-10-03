@@ -26,7 +26,7 @@ output_file <- "data/figure_08_spectrograms.rds"
 # Number of spectrograms computed at once. Each one needs several GB of
 # memory, so running all six in parallel can exhaust RAM on a laptop
 # (the run then fails with "cannot allocate vector"). The default of 1
-# computes them one after another and takes 5-6 hours on a laptop;
+# computes them one after another and may take 3 or more  hours on a laptop;
 # with 2 or 3 the run time falls roughly in proportion, at 2 or 3
 # times the peak memory. The results do not depend on this setting.
 spectrogram_workers <- 1
@@ -62,8 +62,9 @@ df_spec <- data.frame(
     top = df$top_residual
 )
 
-# Missing values are replaced with zero before calculating the
-# spectrograms, as in the original analysis.
+# Any missing values are set to zero before calculating the
+# spectrograms. (After 03_long_gaps.R there should be none: days with
+# long gaps are already set to zero there.)
 
 df_spec[is.na(df_spec)] <- 0
 
@@ -120,7 +121,7 @@ spectrogram_for_sensor <- function(sensor, df_spec) {
 
     spec_df <- spectro_to_df(spec)
 
-    # Limit amplitudes to the range used in the original spectrogram analysis.
+    # Clip amplitudes to -60 to 0 dB, the range shown in Figure 8.
     spec_df$amplitude <- pmin(pmax(spec_df$amplitude, -60), 0)
     spec_df$sensor <- sensor
     spec_df

@@ -1,10 +1,9 @@
 #####
 
 ## RUN THE FULL PIPELINE
-## POOLE'S CAVERN
-## DATA ANALYSIS
+## POOLE'S CAVERN DATA ANALYSIS
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 30 SEPTEMBER 2026
+## LAST MODIFIED 03 SOCTOBER 2026
 
 #####
 
@@ -30,7 +29,7 @@
 #   session_info.txt      R version, platform and every package version
 #                         used by the pipeline.
 #
-# 08_spectrogram_analysis.R dominates the run time (5-6 hours on a
+# 08_spectrogram_analysis.R dominates the run time (c. 3 hours on a
 # laptop with its default settings); every other script takes seconds.
 
 # ---------------------------------------------------------------------------

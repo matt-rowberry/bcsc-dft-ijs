@@ -1,34 +1,22 @@
 #####
 
 ## ANALYSIS FUNCTIONS
-## Poole's Cavern temperature data
+## POOLE'S CAVERN TEMPERATURE DATA
 ## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
-# Shared helpers used by the data-analysis scripts for Figures 6, 7, 9,
+# Shared helpers used by the data analysis scripts for Figures 6, 7, 9,
 # 10 and 11 (04_day_night_split.R, 05_multiband_reconstruction.R and
 # 07_fft_analysis.R). No external packages are required; only base R
 # is used.
 #
-# Renamed from bandpass_functions.R and pruned down to the three
-# band-pass functions actually called anywhere in the pipeline. In
-# October 2026 is_daytime() was added so that every script uses the
-# same day/night definition, in UK local time (see below).
-#
-# RENAME MAP (old name -> new name):
-#   bandpass_fft_cpd            -> bandpass_filter_fft
-#   bandpass_fft_daynight       -> bandpass_by_daynight
-#   process_day_night_multiband -> reconstruct_multiband_segments
-#
-# REMOVED (confirmed unused anywhere in the reviewed pipeline):
-#   bandpass_fft_daynight_export
-#   reconstruct_day_night_process   (both definitions - the first
-#                                     was already dead, shadowed by
-#                                     the second, which itself was
-#                                     never called by anything)
-#   reconstruct_day_night_chrono
-#   process_day_night_nb3
+# Contents:
+#   is_daytime()                      day/night classification (UK local time)
+#   bandpass_filter_fft()             FFT band-pass filter for one series
+#   bandpass_by_daynight()            band-pass, split by day and night (Figure 7)
+#   reconstruct_multiband_segments()  band-pass within each day/night segment
+#                                     (Figures 9, 10 and 11)
 
 # ---------------------------------------------------------------------------
 # Day and night
@@ -218,9 +206,9 @@ bandpass_by_daynight <- function(
 #' 05_multiband_reconstruction.R, whose two outputs feed Figures 9,
 #' 10 and 11.
 #'
-#' Only the `nb3` band is currently active; the others are kept
-#' (commented out) as a record of the bands considered during the
-#' original analysis.
+#' Only the `nb3` band (45.5-50.5 cpd) is used; the others are kept,
+#' commented out, as a record of the wider bands examined before the
+#' analysis focused on 45.5-50.5 cpd.
 #'
 #' @param df Data frame with a timestamp column and one or more
 #'   signal columns.

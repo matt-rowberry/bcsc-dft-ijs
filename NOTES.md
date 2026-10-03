@@ -86,9 +86,9 @@ two regimes.
   zero and zero-pads to the next power of two. In Figure 7 the day
   (or night) series has the other half of each day set to `NA`, so
   each spectrum is that of a gated series.
-- **Unused bands.** `reconstruct_multiband_segments()` keeps other
-  candidate bands commented out as a record of the original analysis;
-  only `nb3` (45.5–50.5 cpd) is used.
+- **Unused bands.** `reconstruct_multiband_segments()` keeps the wider
+  candidate bands examined before the analysis focused on 45.5–50.5 cpd,
+  commented out; only `nb3` (45.5–50.5 cpd) is used.
 - **Console messages.** `07_fft_analysis.R` prints a
   `New names: ...1 ...` message from building a data frame from
   unnamed columns; the columns are renamed on the next line and the
@@ -98,4 +98,4 @@ two regimes.
 
 Gunn, J., Rowberry, M. and Smith, A. (2021). Exploring the impact of
 tourists on cave air temperatures: a Covid-19 case study from Poole's
-Cavern, Derbyshire, UK. *Cave and Karst Science* 48(3), 121–128.
+Cavern, Derbyshire, UK. *Cave and Karst Science* 48, 121–128.

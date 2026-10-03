@@ -97,7 +97,12 @@ combined <- ifft_long %>%
 variance_explained <- combined %>%
     filter(!is.na(ifft)) %>%
     group_by(period, daynight, monitoring_point) %>%
-    summarise(variance_explained = 100 * var(ifft) / var(residual), .groups = "drop") %>%
+    summarise(
+        residual_variance = var(residual),
+        bandlimited_variance = var(ifft),
+        variance_explained = 100 * bandlimited_variance / residual_variance,
+        .groups = "drop"
+    ) %>%
     complete(period, daynight, monitoring_point)
 
 # ---------------------------------------------------------------------------
@@ -108,7 +113,9 @@ figure_11 <- list(rms = rms_summary, variance_explained = variance_explained)
 saveRDS(figure_11, output_file)
 
 # The values plotted in Figure 11 as one table, for readers without R:
-# one row per monitoring point, access regime and day/night period.
+# one row per monitoring point, access regime and day/night period,
+# with the residual and band-limited (45.5-50.5 cpd) variances from
+# which the variance explained is calculated.
 # Empty cells are combinations with no data (MP6 before August 2020;
 # MP4 in regime 5).
 
@@ -126,9 +133,11 @@ figure_11_table <- full_join(
         access_regime = period,
         day_night = daynight,
         rms_amplitude_degC = signif(rms, 6),
+        residual_variance_degC2 = signif(residual_variance, 6),
+        bandlimited_variance_degC2 = signif(bandlimited_variance, 6),
         variance_explained_pct = signif(variance_explained, 6)
     ) %>%
-    mutate(across(c(rms_amplitude_degC, variance_explained_pct), ~ ifelse(is.nan(.x), NA, .x))) %>%
+    mutate(across(where(is.double), ~ ifelse(is.nan(.x), NA, .x))) %>%
     relocate(monitoring_point) %>%
     arrange(monitoring_point, access_regime, day_night)
 

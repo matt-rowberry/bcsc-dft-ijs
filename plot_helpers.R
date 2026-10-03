@@ -1,7 +1,7 @@
 #####
 
 ## PLOTTING HELPERS
-## Poole's Cavern temperature data
+## POOLES'S CAVERN TEMPERATURE DATA
 ## LAST MODIFIED 3 OCTOBER 2026
 
 #####
