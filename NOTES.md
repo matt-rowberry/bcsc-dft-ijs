@@ -3,21 +3,36 @@
 Details that are easy to misread as bugs. Each matches the published
 figures; changing any of them would change the results.
 
-## 1. Two day/night definitions
+## 1. Day and night are defined in UK local time
 
-Day is 09:30–17:30 throughout, but the end point is handled in two ways:
+All timestamps are UTC: the loggers do not change their clocks for
+British Summer Time. Opening hours follow local time, so `is_daytime()`
+in `analysis_functions.R` converts each timestamp to Europe/London time
+before classifying it:
 
-| Used by | Script | Day | 17:30 sample is |
+| | Local time | UTC during GMT (late Oct–late Mar) | UTC during BST |
 |---|---|---|---|
-| Figure 6 | `04_day_night_split.R` | 09:30 ≤ t ≤ 17:30 | day |
-| Figures 7, 9, 10, 11 | `analysis_functions.R` (`bandpass_by_daynight()`, `reconstruct_multiband_segments()`) | 09:30 ≤ t < 17:30 | night |
+| Day | 09:30–17:20 | 09:30–17:20 | 08:30–16:20 |
+| Night | 17:30–09:20 | 17:30–09:20 | 16:30–08:20 |
 
-So the two definitions differ by one 10-minute sample per day. Neither
-drops any samples: every timestamp is either day or night. (The comment
-in `04_day_night_split.R` about the 09:20–09:30 and 17:30–17:40
-intervals being "excluded" refers to the gaps between samples, not to
-any samples being dropped.) Figure 7 uses only the full-period series
-from script 04 and applies its own day/night split.
+Times are those of the 10-minute samples, so every sample is either day
+or night. The same function is used for Figure 6 (`04_day_night_split.R`)
+and for Figures 7, 9, 10 and 11 (`bandpass_by_daynight()` and
+`reconstruct_multiband_segments()`).
+
+The published figures (before October 2026) applied a fixed
+09:30–17:30 window in UTC, so during BST the first hour of opening was
+counted as night. They also treated the 17:30 sample as day in
+Figure 6 but as night elsewhere.
+
+The 09:30–17:20 window is a best estimate: opening hours changed during
+the COVID-19 restrictions, and the data suggest shorter opening hours
+in winter (visitor-related fluctuations from about 10:00 to 16:00).
+The window is set in one place (`day_first_local`, `day_last_local`).
+
+Access-regime boundaries (`01_imputing.R`) fall at midnight UTC, i.e.
+01:00 local time during BST, which is within the night and does not
+affect any day.
 
 ## 2. Zero marks a day with a long gap
 
@@ -32,8 +47,8 @@ zero vector is zero. `11_variance_analysis.R` relies on this: it treats
 exact zeros in the reconstructed signal as missing (`na_if(ifft, 0)`),
 which removes those days from the RMS and variance summaries.
 
-One consequence: a day segment (09:30–17:20) always lies within one
-calendar day, so it is either entirely zeroed or not at all. A night
+One consequence: a day segment always lies within one calendar day
+(UTC), so it is either entirely zeroed or not at all. A night
 segment runs across midnight, so a zeroed calendar day can cover half
 of it. The band-passed values in that zeroed half are small but not
 exactly zero, so they stay in the Figure 11 summaries.
@@ -41,7 +56,7 @@ exactly zero, so they stay in the Figure 11 summaries.
 ## 3. Access-regime boundaries are written out in three places
 
 Each is derived from the same regime start dates (see
-`measured/README.md`), counted as `d` days from 2019-10-16:
+`measured/README.md`), counted as `d` days from 2019-10-16 (UTC):
 
 | Script | Form | Values |
 |---|---|---|

@@ -2,9 +2,15 @@
 
 ## ORGANISING DATAFRAMES FOR THE TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 28 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
+
+# ---------------------------------------------------------------------------
+# Functions
+# ---------------------------------------------------------------------------
+
+source("analysis_functions.R")
 
 # ---------------------------------------------------------------------------
 # Input and output
@@ -17,14 +23,14 @@ output_file <- "data/full_day_night_time_series.rds"
 # Create aligned day, night and full-period datasets
 # ---------------------------------------------------------------------------
 
-# Day and night intervals are defined using the access times applied
-# throughout the study:
+# Day and night are defined by is_daytime() in analysis_functions.R,
+# the same definition used for Figures 7, 9, 10 and 11:
 #
-#   Day:   09:30-17:30
-#   Night: 17:40-09:20
+#   Day:   09:30-17:20 UK local time
+#   Night: 17:30-09:20 UK local time
 #
-# The 10-minute interval from 09:20 to 09:30 and from 17:30 to 17:40
-# is therefore excluded from both periods.
+# The timestamps are in UTC, so during British Summer Time day is
+# 08:30-16:20 UTC.
 #
 # For the day and night datasets, observations outside the relevant
 # interval are replaced with NA while the complete 10-minute time
@@ -44,10 +50,9 @@ split_day_night_period <- function(
     period_col = "period"
 ) {
     df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]])
-    time_str <- format(df[[timestamp_col]], "%H:%M:%S")
 
-    is_night <- time_str >= "17:40:00" | time_str <= "09:20:00"
-    is_day <- !is_night
+    is_day <- is_daytime(df[[timestamp_col]])
+    is_night <- !is_day
 
     # Replace observations outside the selected interval with NA
     # while preserving the original column type.

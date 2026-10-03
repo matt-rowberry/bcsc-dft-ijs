@@ -2,7 +2,7 @@
 
 ## PREPARING SEGMENT DATA FOR FIGURE 10
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
@@ -30,6 +30,13 @@ df <- readRDS(input_file)
 # Each access regime is identified by the range of day/night segments
 # it contains. The boundary segments (311, 557, 773 and 1161) belong
 # to both of the adjacent regimes, as in the original analysis.
+#
+# These numbers assume one day segment per day, so that the record of
+# 731 days has 1463 segments (starting and ending with a night) and
+# segment 2d + 1 is the night spanning the start of day d. This is
+# checked first.
+
+stopifnot(max(df$segment) == 2 * 731 + 1)
 
 figure_10 <- bind_rows(
     df %>% filter(band == "nb3", segment <= 311) %>% mutate(period = 1),

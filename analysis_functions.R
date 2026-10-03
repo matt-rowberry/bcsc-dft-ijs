@@ -2,19 +2,19 @@
 
 ## ANALYSIS FUNCTIONS
 ## Poole's Cavern temperature data
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
-# Shared signal-processing helpers used by the data-analysis scripts
-# for Figures 7, 9, 10 and 11 (05_multiband_reconstruction.R and
+# Shared helpers used by the data-analysis scripts for Figures 6, 7, 9,
+# 10 and 11 (04_day_night_split.R, 05_multiband_reconstruction.R and
 # 07_fft_analysis.R). No external packages are required; only base R
 # is used.
 #
 # Renamed from bandpass_functions.R and pruned down to the three
-# functions actually called anywhere in the pipeline. No computation
-# has been altered from the original code - only names, comments and
-# the removal of dead code.
+# band-pass functions actually called anywhere in the pipeline. In
+# October 2026 is_daytime() was added so that every script uses the
+# same day/night definition, in UK local time (see below).
 #
 # RENAME MAP (old name -> new name):
 #   bandpass_fft_cpd            -> bandpass_filter_fft
@@ -29,6 +29,42 @@
 #                                     never called by anything)
 #   reconstruct_day_night_chrono
 #   process_day_night_nb3
+
+# ---------------------------------------------------------------------------
+# Day and night
+# ---------------------------------------------------------------------------
+
+# Day is the period when the cave is open to visitors, taken as 09:30
+# to 17:20 UK local time (the timestamp of the last 10-minute sample
+# of the day); night is 17:30 to 09:20. Every sample is either day or
+# night.
+#
+# The loggers record in UTC and do not change their clocks for
+# British Summer Time, whereas opening hours follow local time.
+# Timestamps are therefore converted to Europe/London time before
+# being classified: during BST, day is 08:30 to 16:20 UTC.
+
+day_first_local <- "09:30"
+day_last_local <- "17:20"
+
+#' Classify timestamps as day (cave open) or night.
+#'
+#' @param dttm POSIXct timestamps. Their time-zone attribute does not
+#'   matter: POSIXct values are absolute instants, and they are
+#'   converted to UK local time here.
+#' @param tz Time zone of the opening hours.
+#' @param first,last First and last daytime sample, "HH:MM" local time.
+#' @return Logical vector, `TRUE` for day.
+is_daytime <- function(
+        dttm,
+        tz = "Europe/London",
+        first = day_first_local,
+        last = day_last_local
+) {
+    stopifnot(inherits(dttm, "POSIXct"))
+    local_time <- format(dttm, "%H:%M", tz = tz)
+    local_time >= first & local_time <= last
+}
 
 # ---------------------------------------------------------------------------
 # Core FFT band-pass filter
@@ -122,8 +158,6 @@ bandpass_filter_fft <- function(x, fs_cpd, freq_min_cpd, freq_max_cpd) {
 #'   signal columns.
 #' @param timestamp_col Name of the timestamp column.
 #' @param fs_cpd,freq_min,freq_max Passed to `bandpass_filter_fft()`.
-#' @param day_start,day_end Day interval, as fractional hours
-#'   (default 09:30-17:30).
 #' @param signal_cols Columns to filter; defaults to every column
 #'   except `timestamp_col`.
 #' @return A named list (one entry per signal column) of lists with
@@ -135,8 +169,6 @@ bandpass_by_daynight <- function(
         fs_cpd,
         freq_min,
         freq_max,
-        day_start = 9.5,
-        day_end = 17.5,
         signal_cols = NULL
 ) {
     df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]])
@@ -145,9 +177,8 @@ bandpass_by_daynight <- function(
         signal_cols <- setdiff(names(df), timestamp_col)
     }
 
-    hour <- as.numeric(format(df[[timestamp_col]], "%H")) +
-        as.numeric(format(df[[timestamp_col]], "%M")) / 60
-    is_day <- hour >= day_start & hour < day_end
+    # Day and night as defined by is_daytime() (UK local time).
+    is_day <- is_daytime(df[[timestamp_col]])
     is_night <- !is_day
 
     results <- list()
@@ -198,8 +229,6 @@ bandpass_by_daynight <- function(
 #'   except `timestamp_col`.
 #' @param fs_cpd Sampling frequency, in cycles per day.
 #' @param bands Named list of `c(freq_min, freq_max)` pairs.
-#' @param day_start,day_end Day interval, as fractional hours
-#'   (default 09:30-17:30).
 #' @return A list with:
 #'   * `full_series` - a data frame with `timestamp`, `daynight` and
 #'     one reconstructed `<column>_<band>` series per column/band
@@ -217,9 +246,7 @@ reconstruct_multiband_segments <- function(
             # nb1 = c(24, 72),
             # nb2 = c(45, 51),
             nb3 = c(45.5, 50.5)
-        ),
-        day_start = 9.5,
-        day_end = 17.5
+        )
 ) {
     if (is.null(signal_cols)) {
         signal_cols <- setdiff(names(df), timestamp_col)
@@ -227,9 +254,8 @@ reconstruct_multiband_segments <- function(
 
     df[[timestamp_col]] <- as.POSIXct(df[[timestamp_col]])
 
-    hour <- as.numeric(format(df[[timestamp_col]], "%H")) +
-        as.numeric(format(df[[timestamp_col]], "%M")) / 60
-    type_vec <- ifelse(hour >= day_start & hour < day_end, "day", "night")
+    # Day and night as defined by is_daytime() (UK local time).
+    type_vec <- ifelse(is_daytime(df[[timestamp_col]]), "day", "night")
 
     out_series <- list(timestamp = df[[timestamp_col]], daynight = type_vec)
     out_segments <- list()

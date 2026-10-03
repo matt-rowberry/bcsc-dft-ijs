@@ -15,8 +15,8 @@ Each monitoring point's temperature series is modelled as a local-level
 state-space model with fixed 24-, 12-, 8- and 6-hour harmonics. The
 residuals (what the model does not explain) are then examined in the
 frequency domain for recurring structure within the day, separately
-for daytime (09:30–17:30, when the cave is open) and night, and across
-five access regimes:
+for daytime (09:30–17:20 UK local time, when the cave is open) and
+night, and across five access regimes:
 
 | Regime | From | To | Description |
 |---|---|---|---|
