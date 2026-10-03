@@ -82,8 +82,13 @@ log_dir <- "logs"
 summary_file <- file.path(log_dir, "run_summary.csv")
 session_file <- "session_info.txt"
 
-run_only <- c("06_ts_plot.R", "07_fft_plot.R", "08_spectrogram_plot.R",
-              "09_reconstruction_plot.R", "10_segment_plot.R", "11_variance_plot.R")
+run_only <- c("00_preprocess.R", "01_imputing.R", "02_kalman_filtering.R",
+              "03_long_gaps.R", "04_day_night_split.R",
+              "05_multiband_reconstruction.R", "06_ts_plot.R",
+              "07_fft_analysis.R", "07_fft_plot.R",
+              "09_reconstruction_analysis.R", "09_reconstruction_plot.R",
+              "10_segment_analysis.R", "10_segment_plot.R",
+              "11_variance_analysis.R", "11_variance_plot.R")
 
 # ---------------------------------------------------------------------------
 # Checks
