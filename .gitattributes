@@ -1,0 +1,13 @@
+# Normalise line endings: text files are stored with LF in the
+# repository and checked out with the platform's native line endings.
+* text=auto
+
+*.R      text
+*.Rproj  text
+*.md     text
+*.cff    text
+*.csv    text
+
+# Binary outputs
+*.rds    binary
+*.tif    binary

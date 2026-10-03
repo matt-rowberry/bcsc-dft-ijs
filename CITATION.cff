@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: >-
+  If you use this code or data, please cite the associated manuscript
+  and this archive.
+type: software
+title: >-
+  Code and data for "Hidden thermal signatures reveal the microclimatic
+  influence of scheduled cave tourism"
+abstract: >-
+  R pipeline and 10-minute air-temperature records from six monitoring
+  points in Poole's Cavern (Buxton, UK), October 2019 to October 2021,
+  reproducing Figures 6-11 of the manuscript.
+authors:
+  - family-names: Rowberry
+    given-names: Matt
+    affiliation: Institute of Rock Structure and Mechanics, Czech Academy of Sciences
+    # orcid: https://orcid.org/0000-0000-0000-0000
+  # TODO: co-authors, if the archive should list them
+repository-code: https://github.com/matt-rowberry/bcsc-dft-ijs
+license: MIT  # TODO: confirm
+version: 1.0.0  # TODO: confirm first release tag
+# date-released: 2026-MM-DD
+keywords:
+  - cave microclimate
+  - show cave
+  - cave tourism
+  - temperature
+  - spectral analysis
+  - state-space model
+  - Poole's Cavern
+# TODO: once the manuscript has a DOI, uncomment and fill in:
+# preferred-citation:
+#   type: article
+#   title: "Hidden thermal signatures reveal the microclimatic influence of scheduled cave tourism"
+#   authors:
+#     - family-names: Rowberry
+#       given-names: Matt
+#   journal: ""
+#   year: 2026
+#   doi: ""

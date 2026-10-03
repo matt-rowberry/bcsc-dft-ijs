@@ -3,7 +3,7 @@
 ## PLOTTING SEGMENT-LEVEL RECONSTRUCTED SIGNALS FOR FIGURE 10
 ## PLOTTING ONLY
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
@@ -150,8 +150,7 @@ ifft_segment_plot_open <- assemble_figure(
     ncol = 3,
     y_label = "r  e  c  o  n  s  t  r  u  c  t  e  d      s  i  g  n  a  l",
     x_label = "n  o  r  m  a  l  i  s  e  d      t  i  m  e",
-    regime_labels = paste("Access regime", periods),
-    regime_x = c(0.196, 0.516, 0.836)
+    regime_labels = paste("Access regime", periods)
 )
 
 # ---------------------------------------------------------------------------
@@ -164,5 +163,6 @@ ggsave(
     width = 174,
     height = 200.1,
     units = "mm",
-    dpi = 600
+    dpi = 600,
+    compression = "lzw"
 )

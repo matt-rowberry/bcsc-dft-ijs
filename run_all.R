@@ -9,7 +9,8 @@
 #####
 
 # Runs every analysis and plotting script in dependency order, starting
-# from the six raw CSVs in measured/, and writes figures 6-11 to figs/.
+# from the six temperature records in measured/ as downloaded, and
+# writes figures 6-11 to figs/.
 #
 # Each script runs in its own fresh R process (via Rscript), so no
 # object, loaded package or option can leak from one script into the
@@ -29,22 +30,30 @@
 #   session_info.txt      R version, platform and every package version
 #                         used by the pipeline.
 #
-# 08_spectrogram_analysis.R dominates the run time (about an hour on a
-# laptop); every other script takes seconds to a few minutes.
+# 08_spectrogram_analysis.R dominates the run time (5-6 hours on a
+# laptop with its default settings); every other script takes seconds.
 
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 
 # TRUE deletes existing data/*.rds and figs/*.tif first, so the run
-# really does start from the raw CSVs alone.
+# really does start from the raw CSVs alone. Spectrograms saved in
+# data/spectrogram_cache/ by an interrupted run are kept: script 08
+# reuses them only if their input is identical to the recomputed one,
+# so rerunning after an interruption resumes rather than restarts.
 clean_start <- TRUE
 
-# Scripts in dependency order. The order is listed explicitly rather
-# than taken from file names, because alphabetical order would run
-# 10_segment_plot.R before 10_segments_analysis.R.
+# NULL runs every script. A character vector, e.g.
+# c("06_ts_plot.R", "07_fft_plot.R"), reruns only those scripts against
+# the existing data/*.rds; clean_start is then ignored.
+run_only <- NULL
+
+# Scripts in dependency order. The file names also sort in this order,
+# but the list is kept explicit so the order is documented here.
 scripts <- c(
     # Preprocessing (shared by every figure)
+    "00_preprocess.R",
     "01_imputing.R",
     "02_kalman_filtering.R",
     "03_long_gaps.R",
@@ -62,7 +71,7 @@ scripts <- c(
     "09_reconstruction_analysis.R",
     "09_reconstruction_plot.R",
     # Figure 10
-    "10_segments_analysis.R",
+    "10_segment_analysis.R",
     "10_segment_plot.R",
     # Figure 11
     "11_variance_analysis.R",
@@ -72,6 +81,9 @@ scripts <- c(
 log_dir <- "logs"
 summary_file <- file.path(log_dir, "run_summary.csv")
 session_file <- "session_info.txt"
+
+run_only <- c("06_ts_plot.R", "07_fft_plot.R", "08_spectrogram_plot.R",
+              "09_reconstruction_plot.R", "10_segment_plot.R", "11_variance_plot.R")
 
 # ---------------------------------------------------------------------------
 # Checks
@@ -104,16 +116,25 @@ run_script <- function(script) {
 
     message(format(Sys.time(), "%H:%M:%S"), "  ", script, " ...")
     start <- Sys.time()
-    status <- system2(rscript, shQuote(script), stdout = log_file, stderr = log_file)
+    # options(warn = 1) prints each warning where it occurs; without it,
+    # Rscript reports only "There were N warnings" and discards them.
+    expr <- sprintf("options(warn = 1); source('%s')", script)
+    status <- system2(rscript, c("-e", shQuote(expr)), stdout = log_file, stderr = log_file)
     minutes <- as.numeric(difftime(Sys.time(), start, units = "mins"))
 
     if (status != 0) {
         stop(script, " failed (exit status ", status, "); see ", log_file)
     }
 
-    n_warn <- sum(grepl("^Warning|warning\\(", readLines(log_file, warn = FALSE)))
+    # Count real warnings, ignoring "package 'x' was built under R
+    # version ..." notices, which only reflect how packages were built.
+    log_lines <- readLines(log_file, warn = FALSE)
+    warn_at <- grep("^Warning", log_lines)
+    built_under <- grepl("was built under R version", log_lines[pmin(warn_at + 1, length(log_lines))]) |
+        grepl("was built under R version", log_lines[warn_at])
+    n_warn <- sum(!built_under)
     message(sprintf("          done in %.1f min%s", minutes,
-                    if (n_warn > 0) sprintf(", %d warning line(s) in log", n_warn) else ""))
+                    if (n_warn > 0) sprintf(", %d warning(s) in log", n_warn) else ""))
     minutes
 }
 
@@ -140,6 +161,13 @@ dir.create(log_dir, showWarnings = FALSE)
 dir.create("data", showWarnings = FALSE)
 dir.create("figs", showWarnings = FALSE)
 
+if (!is.null(run_only)) {
+    unknown <- setdiff(run_only, scripts)
+    if (length(unknown) > 0) stop("Not pipeline scripts: ", paste(unknown, collapse = ", "))
+    scripts <- scripts[scripts %in% run_only]
+    clean_start <- FALSE
+}
+
 if (clean_start) {
     old <- c(list.files("data", pattern = "\\.rds$", full.names = TRUE),
              list.files("figs", pattern = "\\.tif$", full.names = TRUE))
@@ -164,17 +192,24 @@ message(sprintf("\nAll %d scripts finished in %.1f min.", length(scripts),
 # Session information
 # ---------------------------------------------------------------------------
 
-# Attach every package the pipeline uses, so sessionInfo() records the
-# exact versions that produced the figures.
+# Written only after a full run. Attach every package the pipeline
+# uses, so sessionInfo() records the exact versions that produced the
+# figures.
 
-pkgs <- pipeline_packages(c(scripts, "analysis_functions.R", "plot_helpers.R"))
-invisible(lapply(pkgs, function(p) suppressPackageStartupMessages(library(p, character.only = TRUE))))
+if (!is.null(run_only)) {
+    message("Partial run: ", session_file, " left unchanged.")
+} else {
+    pkgs <- pipeline_packages(c(scripts, "analysis_functions.R", "plot_helpers.R"))
+    invisible(lapply(pkgs, function(p) {
+        suppressPackageStartupMessages(library(p, character.only = TRUE))
+    }))
 
-writeLines(c(
-    paste("Pipeline run completed:", format(Sys.time(), "%Y-%m-%d %H:%M %Z")),
-    paste("Packages used:", paste(pkgs, collapse = ", ")),
-    "",
-    capture.output(sessionInfo())
-), session_file)
+    writeLines(c(
+        paste("Pipeline run completed:", format(Sys.time(), "%Y-%m-%d %H:%M %Z")),
+        paste("Packages used:", paste(pkgs, collapse = ", ")),
+        "",
+        capture.output(sessionInfo())
+    ), session_file)
 
-message("Session information written to ", session_file, ".")
+    message("Session information written to ", session_file, ".")
+}

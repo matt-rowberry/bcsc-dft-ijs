@@ -2,7 +2,7 @@
 
 ## CALCULATING SPECTROGRAMS FOR POOLE'S CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
@@ -22,6 +22,23 @@ library(future.apply)
 
 input_file <- "data/kalman_residuals_full_imp.rds"
 output_file <- "data/figure_08_spectrograms.rds"
+
+# Number of spectrograms computed at once. Each one needs several GB of
+# memory, so running all six in parallel can exhaust RAM on a laptop
+# (the run then fails with "cannot allocate vector"). The default of 1
+# computes them one after another and takes 5-6 hours on a laptop;
+# with 2 or 3 the run time falls roughly in proportion, at 2 or 3
+# times the peak memory. The results do not depend on this setting.
+spectrogram_workers <- 1
+
+# Each spectrogram is saved here as soon as it is finished, so a run
+# that is interrupted (lack of memory, the computer sleeping) resumes
+# from the next one instead of starting again. A saved spectrogram is
+# reused only if its input series, the code of
+# spectrogram_for_sensor() and the seewave and phonTools versions all
+# match exactly; otherwise it is recomputed. The folder is deleted
+# once all six are finished and the output file has been written.
+cache_dir <- "data/spectrogram_cache"
 
 # ---------------------------------------------------------------------------
 # Load data
@@ -77,8 +94,9 @@ spectro_to_df <- function(spec) {
 # day of data lasts 0.001 s on the time axis of the sound object.
 #
 # Each sensor's spectrogram (zp = length * 4 on a ~105,000-row series)
-# is expensive and fully independent of the others, so the six sensors
-# are processed in parallel.
+# is expensive in time and memory and independent of the others. The
+# six sensors can therefore be processed in parallel, subject to
+# memory (see spectrogram_workers above).
 
 #' Spectrogram for one sensor, as a long data frame.
 #'
@@ -108,29 +126,86 @@ spectrogram_for_sensor <- function(sensor, df_spec) {
     spec_df
 }
 
-#' Compute every sensor's spectrogram in parallel.
+#' Spectrogram for one sensor, reusing a saved copy if still valid.
 #'
-#' Each sensor's spectrogram is independent of the others, so they are
-#' distributed across worker processes with `future_lapply()`.
+#' Wraps `spectrogram_for_sensor()`. The result is saved to
+#' `<cache_dir>/<sensor>.rds` together with everything it depends on
+#' (the input series, the function's code and package versions), and
+#' a saved copy is used only if all of these are identical.
+#'
+#' @param sensor Column name in `df_spec`.
+#' @param df_spec Data frame of per-sensor residual series.
+#' @param cache_dir Folder for saved spectrograms.
+#' @return As for `spectrogram_for_sensor()`.
+cached_spectrogram <- function(sensor, df_spec, cache_dir) {
+    cache_file <- file.path(cache_dir, paste0(sensor, ".rds"))
+    key <- list(
+        input = df_spec[[sensor]],
+        code = deparse(spectrogram_for_sensor),
+        packages = c(
+            seewave = as.character(packageVersion("seewave")),
+            phonTools = as.character(packageVersion("phonTools"))
+        )
+    )
+
+    if (file.exists(cache_file)) {
+        cached <- readRDS(cache_file)
+        if (identical(cached$key, key)) {
+            message(format(Sys.time(), "%H:%M:%S"), "  ", sensor, ": reused saved spectrogram")
+            return(cached$spec_df)
+        }
+        message(sensor, ": saved spectrogram is out of date; recomputing")
+    }
+
+    start <- Sys.time()
+    spec_df <- spectrogram_for_sensor(sensor, df_spec)
+
+    # Write to a temporary file first, so an interruption during saving
+    # cannot leave a truncated file behind.
+    tmp_file <- paste0(cache_file, ".tmp")
+    saveRDS(list(key = key, spec_df = spec_df), tmp_file)
+    file.rename(tmp_file, cache_file)
+
+    message(sprintf("%s  %s: computed in %.0f min",
+                    format(Sys.time(), "%H:%M:%S"), sensor,
+                    as.numeric(difftime(Sys.time(), start, units = "mins"))))
+    spec_df
+}
+
+#' Compute every sensor's spectrogram, optionally in parallel.
+#'
+#' With `workers = 1` the sensors are processed one after another in
+#' this R session. With more, they are distributed across worker
+#' processes with `future_lapply()`.
 #'
 #' @param df_spec Data frame of per-sensor residual series.
-#' @param workers Number of parallel workers.
+#' @param cache_dir Folder for saved spectrograms (see
+#'   `cached_spectrogram()`).
+#' @param workers Number of spectrograms computed at once.
 #' @return A single long data frame (all sensors row-bound).
-spectrograms_parallel <- function(df_spec, workers = max(1, availableCores() - 1)) {
-    # Restore the previous future plan when this function returns.
-    oplan <- plan(multisession, workers = workers)
-    on.exit(plan(oplan), add = TRUE)
+spectrograms_parallel <- function(df_spec, cache_dir, workers = 1) {
+    dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
 
-    spectrogram_list <- future_lapply(
-        names(df_spec),
-        spectrogram_for_sensor,
-        df_spec = df_spec
-    )
+    if (workers <= 1) {
+        spectrogram_list <- lapply(names(df_spec), cached_spectrogram,
+                                   df_spec = df_spec, cache_dir = cache_dir)
+    } else {
+        # Restore the previous future plan when this function returns.
+        oplan <- plan(multisession, workers = min(workers, ncol(df_spec)))
+        on.exit(plan(oplan), add = TRUE)
+
+        spectrogram_list <- future_lapply(
+            names(df_spec),
+            cached_spectrogram,
+            df_spec = df_spec,
+            cache_dir = cache_dir
+        )
+    }
 
     bind_rows(spectrogram_list)
 }
 
-all_sensors_df <- spectrograms_parallel(df_spec)
+all_sensors_df <- spectrograms_parallel(df_spec, cache_dir = cache_dir, workers = spectrogram_workers)
 
 # ---------------------------------------------------------------------------
 # Assign access regimes to spectrogram time
@@ -163,3 +238,7 @@ all_sensors_df$period <- cut(
 # ---------------------------------------------------------------------------
 
 saveRDS(all_sensors_df, output_file)
+
+# The saved per-sensor spectrograms are only needed to resume an
+# interrupted run.
+unlink(cache_dir, recursive = TRUE)

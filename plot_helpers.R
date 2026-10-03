@@ -2,18 +2,19 @@
 
 ## PLOTTING HELPERS
 ## Poole's Cavern temperature data
-## LAST MODIFIED 29 SEPTEMBER 2026
+## LAST MODIFIED 3 OCTOBER 2026
 
 #####
 
 # Shared by the figure-plotting scripts 06_ts_plot.R to 11_variance_plot.R.
-# Each script loads this file with source("plot_helpers.R"). Values are
-# unchanged from the originals; only comments and formatting have been
-# made consistent with the rest of the repository.
+# Each script loads this file with source("plot_helpers.R"). Panel
+# content and styling are unchanged from the published figures. The
+# figure assembly (assemble_figure()) was rebuilt with patchwork in
+# October 2026 so that headings and axis labels are no longer clipped
+# at the figure edges; the panels are therefore slightly smaller.
 #
-# This file assumes ggplot2, patchwork and cowplot are already loaded by
-# the calling script (functions here call them with `::`, except
-# theme_ste(), which builds on ggplot2::theme_classic()).
+# Functions here call ggplot2, patchwork and grid with `::`, so the
+# calling script needs only ggplot2 attached.
 
 # ---------------------------------------------------------------------------
 # Fonts
@@ -123,47 +124,106 @@ theme_ste <- function(base_family = "Aptos", base_size = 7) {
 
 #' Assemble a multi-panel figure with figure-wide labels.
 #'
-#' Combines `panels` (filled row by row) into a grid with
-#' `patchwork::wrap_plots()`, then overlays the figure-wide axis labels
-#' and "Access regime" headings with `cowplot`. The default heading
-#' positions are those for five columns of panels; Figure 10, which
-#' shows regimes 1, 3 and 5 only, supplies its own `regime_labels` and
-#' `regime_x`.
+#' Arranges `panels` (filled row by row) in a grid, with an "Access
+#' regime" heading above each column and figure-wide axis labels to
+#' the left of and below the grid. The headings and labels are laid
+#' out by patchwork in rows and columns of fixed size (in mm), aligned
+#' with the panel areas, so they are never clipped at the edge of the
+#' figure. Because patchwork builds the layout when the figure is
+#' drawn, text is measured on the output device itself, in the font
+#' that is actually used.
 #'
 #' @param panels List of ggplot objects, filled row by row.
 #' @param ncol Number of columns to arrange `panels` into.
 #' @param y_label,x_label Figure-wide axis label text.
-#' @param regime_labels Character vector of "Access regime" headings.
-#' @param regime_x X positions (0-1, figure-relative) for
-#'   `regime_labels`.
-#' @return A cowplot/ggplot object ready for `ggsave()`.
+#' @param regime_labels "Access regime" headings, one per column.
+#' @param label_size,heading_size Font sizes (pt) of the axis labels
+#'   and the headings.
+#' @param label_space,heading_space Space (mm) reserved for the axis
+#'   labels and the headings, about the height of the text itself.
+#'   Text is not clipped to this space, so slightly larger text only
+#'   moves closer to its neighbours.
+#' @param outer_margin White margin (mm) around the whole figure.
+#' @param panel_margin Margin (mm) around each panel: top, right,
+#'   bottom, left. Neighbouring margins add up, so the gap between two
+#'   columns of panels is the right plus the left margin.
+#' @return A patchwork object ready for `ggsave()`.
 assemble_figure <- function(
         panels,
         ncol,
         y_label,
         x_label,
         regime_labels = paste("Access regime", 1:5),
-        regime_x = c(0.129, 0.3205, 0.5145, 0.707, 0.8995)
+        label_size = 9,
+        heading_size = 11,
+        label_space = 3,
+        heading_space = 4,
+        outer_margin = 0.5,
+        panel_margin = c(1.25, 1.5, 1.5, 2)
 ) {
-    figure <- patchwork::wrap_plots(panels, ncol = ncol) +
-        patchwork::plot_layout() &
-        ggplot2::theme(
+    nrow <- length(panels) %/% ncol
+    stopifnot(
+        length(panels) == nrow * ncol,
+        length(panel_margin) == 4,
+        length(regime_labels) == ncol
+    )
+
+    # Spacing around each panel. Tick labels at the ends of an axis
+    # extend beyond the panel edge, so the margins (wider than the
+    # published figures' 1, 1.25, 1.5, 2 mm) keep the end labels of
+    # neighbouring panels clearly apart.
+    panels <- lapply(panels, function(p) {
+        p + ggplot2::theme(
             panel.spacing = ggplot2::unit(0, "mm"),
-            plot.margin = ggplot2::margin(1, 1.25, 1.5, 2, "mm")
+            plot.margin = ggplot2::margin(
+                panel_margin[1], panel_margin[2], panel_margin[3], panel_margin[4], "mm"
+            )
         )
+    })
 
-    figure <- cowplot::ggdraw(xlim = c(-0.01, 1), ylim = c(-0.01, 1.015)) +
-        cowplot::draw_plot(figure, x = 0, y = 0, width = 1, height = 1) +
-        cowplot::draw_label(y_label, x = 0, y = 0.5, angle = 90, size = 9, fontfamily = "Aptos", fontface = "plain") +
-        cowplot::draw_label(x_label, x = 0.515, y = 0, size = 9, fontfamily = "Aptos", fontface = "plain")
-
-    for (i in seq_along(regime_labels)) {
-        figure <- figure +
-            cowplot::draw_label(
-                regime_labels[i], x = regime_x[i], y = 1.005,
-                size = 11, fontfamily = "Aptos", fontface = "bold"
+    # A text-only cell. wrap_elements(panel = ...) places the text in
+    # the panel area of its cell, so it is centred on the panels it
+    # sits above or beside rather than on the whole cell.
+    text_cell <- function(label, size, face = "plain", rot = 0) {
+        grob <- grid::textGrob(
+            label,
+            rot = rot,
+            gp = grid::gpar(fontfamily = "Aptos", fontsize = size, fontface = face)
+        )
+        patchwork::wrap_elements(panel = grob, clip = FALSE) +
+            ggplot2::theme(
+                plot.margin = ggplot2::margin(0, 0, 0, 0),
+                plot.background = ggplot2::element_blank()
             )
     }
 
-    figure
+    headings <- lapply(regime_labels, text_cell, size = heading_size, face = "bold")
+    y_cell <- text_cell(y_label, size = label_size, rot = 90)
+    x_cell <- text_cell(x_label, size = label_size)
+
+    # Layout: row 1 holds the headings, column 1 the y label and the
+    # last row the x label; the panels fill the rest. Cells are listed
+    # in the same order as the plots passed to wrap_plots() below.
+    design <- c(
+        do.call(c, lapply(seq_len(ncol), function(j) patchwork::area(1, j + 1))),
+        patchwork::area(2, 1, nrow + 1, 1),
+        do.call(c, lapply(seq_len(nrow * ncol), function(k) {
+            patchwork::area((k - 1) %/% ncol + 2, (k - 1) %% ncol + 2)
+        })),
+        patchwork::area(nrow + 2, 2, nrow + 2, ncol + 1)
+    )
+
+    patchwork::wrap_plots(
+        c(headings, list(y_cell), panels, list(x_cell)),
+        design = design,
+        widths = grid::unit(c(label_space, rep(1, ncol)), c("mm", rep("null", ncol))),
+        heights = grid::unit(c(heading_space, rep(1, nrow), label_space),
+                             c("mm", rep("null", nrow), "mm"))
+    ) +
+        patchwork::plot_annotation(
+            theme = ggplot2::theme(
+                plot.background = ggplot2::element_rect(fill = "white", colour = NA),
+                plot.margin = ggplot2::margin(outer_margin, outer_margin, outer_margin, outer_margin, "mm")
+            )
+        )
 }

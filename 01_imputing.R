@@ -2,7 +2,7 @@
 
 ## IMPUTING SHORT RUNS OF MISSING VALUES IN TEMPERATURE RECORDS FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED ON 28 SEPTEMBER 2026
+## LAST MODIFIED ON 3 OCTOBER 2026
 
 #####
 
@@ -10,7 +10,6 @@
 # Packages
 # ---------------------------------------------------------------------------
 
-library(readr)
 library(dplyr)
 library(lubridate)
 library(imputeTS)
@@ -21,8 +20,7 @@ library(future.apply)
 # Input and output
 # ---------------------------------------------------------------------------
 
-csv_dir <- "measured"
-csv_pattern <- "^\\d{2}_pooles_.*_2019_2021\\.csv$"
+input_file <- "data/all_sites_10min.rds"
 output_file <- "data/all_sites_sr_imp.rds"
 
 # ---------------------------------------------------------------------------
@@ -61,46 +59,22 @@ period <- case_when(
 )
 
 # ---------------------------------------------------------------------------
-# Import quality-controlled temperature data
+# Import the regular 10-minute temperature series
 # ---------------------------------------------------------------------------
 
-# Temperature observations were downloaded from the British Cave
-# Research Association data archive:
-#
-#   https://bcra.org.uk/data/all_readings/
-#
-# Prior to import, the downloaded observations were (1) rounded to
-# the nearest 10-minute interval and (2) checked for and cleared of
-# duplicate timestamps. The CSV files imported below therefore
-# represent quality-controlled input data rather than the original
-# downloaded observations.
+# 00_preprocess.R converts the downloaded records into one 10-minute
+# series per monitoring point, in UTC, on the same time axis as dttm
+# above. The time axes are checked to match exactly, so that a series
+# can never be shifted against the access regimes.
 
-#' Read one site's temperature column from a quality-controlled CSV.
-#'
-#' @param file Path to a CSV file with a timestamp column followed
-#'   by a single temperature column.
-#' @return A one-column data frame named after the temperature
-#'   column.
-read_temp <- function(file) {
-    df <- read_csv(file, show_col_types = FALSE)
-    setNames(data.frame(df[[2]]), names(df)[2])
-}
-
-csv_files <- list.files(csv_dir, pattern = csv_pattern, full.names = TRUE)
-df_list <- lapply(csv_files, read_temp)
-
-# The six series are combined by position, not joined by timestamp.
-# Each file must therefore already contain exactly one row per
-# 10-minute interval of the analysis period, in chronological order
-# (this is what the quality control described above provides). The
-# row counts are checked here so that any misalignment fails loudly
-# rather than silently shifting one series against the others.
+all_sites <- readRDS(input_file)
 
 stopifnot(
-    all(vapply(df_list, nrow, integer(1)) == length(dttm))
+    nrow(all_sites) == length(dttm),
+    all(all_sites$dttm == dttm)
 )
 
-df <- do.call(cbind.data.frame, df_list)
+df <- all_sites[, setdiff(names(all_sites), "dttm")]
 
 # ---------------------------------------------------------------------------
 # Impute short runs of missing data
