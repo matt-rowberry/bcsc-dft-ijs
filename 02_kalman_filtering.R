@@ -2,7 +2,7 @@
 
 ## KALMAN FILTERING THE TEMPERATURE DATA FROM POOLES CAVERN
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 3 OCTOBER 2026
+## LAST MODIFIED 4 OCTOBER 2026
 
 #####
 
@@ -14,12 +14,16 @@ library(KFAS)
 library(future)
 library(future.apply)
 
+source("analysis_functions.R")
+
 # ---------------------------------------------------------------------------
 # Input and output
 # ---------------------------------------------------------------------------
 
 input_file <- "data/all_sites_sr_imp.rds"
 output_file <- "data/kalman_results_residuals.rds"
+parameters_file <- "data/kalman_parameters.rds"
+parameters_table <- "figs/02_kalman_parameters.csv"
 
 # ---------------------------------------------------------------------------
 # Parallelised state-space model function
@@ -43,8 +47,10 @@ output_file <- "data/kalman_results_residuals.rds"
 #'     fitted values, recursive residuals, smoothed signal, estimated
 #'     observation disturbances and estimated state disturbances.
 #'   * `residuals` - dttm, period and the recursive residual for each
-#'     monitoring point only. This is the only part used downstream
-#'     (see section "Write residuals" below).
+#'     monitoring point only (see section "Write residuals" below).
+#'   * `parameters` - one row per monitoring point: the estimated
+#'     variances Q and H, the steady-state Kalman gain K, the eight
+#'     harmonic coefficients and the residuals' gain at 48 cpd.
 kalman_filter_wide_parallel <- function(
     data_df,
     model_fn,
@@ -82,6 +88,26 @@ kalman_filter_wide_parallel <- function(
         epshat <- as.numeric(kfs$epshat)
         etahat <- kfs$etahat
 
+        # Estimated variances, steady-state Kalman gain and harmonic
+        # coefficients, saved for reporting and for recolouring the
+        # band-limited reconstructions (see NOTES.md). The harmonic
+        # coefficients are fixed, so their last filtered estimate is
+        # their estimate from the whole record.
+        Q <- fit$model$Q[1, 1, 1]
+        H <- fit$model$H[1, 1, 1]
+        beta <- coef(kfs, states = "regression", filtered = TRUE, last = TRUE)
+        stopifnot(length(beta) == 8)
+        beta <- setNames(
+            as.numeric(beta),
+            c("sin1", "cos1", "sin2", "cos2", "sin3", "cos3", "sin4", "cos4")
+        )
+        K <- steady_state_gain(Q, H)
+        params <- data.frame(
+            site = name, Q = Q, H = H, K = K,
+            gain_48cpd = Mod(innovation_response(48, K, fs_cpd = 144)),
+            t(beta)
+        )
+
         series_df <- data.frame(
             original = y,
             fitted = fitted,
@@ -99,16 +125,21 @@ kalman_filter_wide_parallel <- function(
 
         # Prefix each output column with the monitoring-point name.
         colnames(series_df) <- paste0(name, "_", colnames(series_df))
-        series_df
+        list(series = series_df, params = params)
     })
 
-    all_results <- cbind(time_info, do.call(cbind, results_list))
+    all_results <- cbind(
+        time_info,
+        do.call(cbind, lapply(results_list, `[[`, "series"))
+    )
+    parameters <- do.call(rbind, lapply(results_list, `[[`, "params"))
+    rownames(parameters) <- NULL
 
     # Extract residuals for subsequent analysis.
     residual_cols <- grep("_residual$", colnames(all_results), value = TRUE)
     residuals_only <- all_results[, c("dttm", "period", residual_cols)]
 
-    list(all = all_results, residuals = residuals_only)
+    list(all = all_results, residuals = residuals_only, parameters = parameters)
 }
 
 # ---------------------------------------------------------------------------
@@ -173,3 +204,18 @@ kalman_results <- kalman_filter_wide_parallel(
 # available in kalman_results$all if it is required for inspection.
 
 saveRDS(kalman_results$residuals, output_file)
+
+# ---------------------------------------------------------------------------
+# Write model parameters
+# ---------------------------------------------------------------------------
+
+# The steady-state Kalman gains are used by 05_multiband_reconstruction.R
+# to recolour the reconstruction; the CSV reports all parameters for
+# readers without R.
+
+saveRDS(kalman_results$parameters, parameters_file)
+
+parameters_out <- kalman_results$parameters
+num_cols <- vapply(parameters_out, is.numeric, logical(1))
+parameters_out[num_cols] <- lapply(parameters_out[num_cols], signif, 6)
+write.csv(parameters_out, parameters_table, row.names = FALSE)

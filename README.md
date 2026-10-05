@@ -39,8 +39,10 @@ For each monitoring point, the analysis:
 1. aligns the logger readings to a common 10-minute UTC time axis and
    imputes gaps of up to 6 hours by Kalman smoothing (scripts 00–01);
 2. models the temperature as a stochastic local level plus the first
-   four harmonics of the 24-hour cycle, and keeps the residual
-   short-timescale variability (02–03);
+   four harmonics of the 24-hour cycle, and keeps the one-step-ahead
+   prediction errors as the residual short-timescale variability
+   (02–03); these act as a high-pass filter of the temperature (see
+   `NOTES.md`);
 3. splits the residuals by access regime and into daytime (09:30–17:20
    UK local time) and night-time, and examines their spectra (04, 07),
    spectrograms (08) and the band-limited inverse-Fourier
@@ -55,8 +57,9 @@ For each monitoring point, the analysis:
 ```
 measured/        Six temperature records as downloaded, one per monitoring point (input)
 data/            Intermediate .rds files (created by the pipeline)
-figs/            Figures 6–11 as 600 dpi .tif files, and the values of Figure 11
-                 as 11_variance_values.csv (created by the pipeline)
+figs/            Figures 6–11 as 600 dpi .tif files, the values of Figure 11
+                 as 11_variance_values.csv, and the fitted model parameters
+                 as 02_kalman_parameters.csv (created by the pipeline)
 logs/            Per-script logs from run_all.R (created by the pipeline)
 
 00_ … 11_*.R     Pipeline scripts, run in the order below
@@ -72,7 +75,8 @@ session_info.txt       R and package versions used for the figures in the paper
 measured/*.csv
   └─ 00_preprocess.R                regular 10-min series in UTC, sensor faults removed
       └─ 01_imputing.R              impute gaps of ≤ 6 h (imputeTS::na_kalman)
-          └─ 02_kalman_filtering.R  state-space model, recursive residuals (KFAS)
+          └─ 02_kalman_filtering.R  state-space model, recursive residuals and
+                                    fitted parameters (KFAS)
               └─ 03_long_gaps.R     zero out calendar days with longer gaps
                   ├─ 04_day_night_split.R ──────────── Figure 6, Figure 7
                   ├─ 05_multiband_reconstruction.R ─── Figures 9, 10, 11
@@ -112,7 +116,7 @@ workflow diagrams) are not produced by this code.
 
 `run_all.R` runs every script in its own fresh R session, in the order
 shown above, starting from `measured/` alone. It writes a log for each
-script to `logs/`. With default settings the whole run takes 5–6 hours
+script to `logs/`. With default settings the whole run takes 4–5 hours
 on a laptop, almost all of it in `08_spectrogram_analysis.R` (see
 Parallel processing below); every other script takes seconds. 
 To rerun only some scripts against existing intermediate

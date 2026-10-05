@@ -75,7 +75,50 @@ instead assigns each sample to a regime by its own timestamp (via the
 `period` column from script 01), so it splits that night between the
 two regimes.
 
-## 4. Smaller points
+## 4. The residuals are one-step-ahead prediction errors
+
+`02_kalman_filtering.R` saves `residuals(kfs, type = "recursive")`:
+each temperature minus the model's prediction of it from the previous
+time step. These are not the model's observation disturbances. Once
+the Kalman filter has settled, they are a fixed linear filter of the
+temperature,
+
+    v_t = (1 - B) / (1 - (1 - K) B) y_t,
+
+where B is the backshift operator and K the steady-state Kalman gain
+of the local level, computed from the estimated variances Q and H
+(`steady_state_gain()` in `analysis_functions.R`). The filter strongly
+suppresses the diurnal and slower variability, which suits the
+segment-by-segment Fourier analysis: little of that large
+low-frequency variance can leak into the 45.5–50.5 cpd band
+(pre-whitening). It also amplifies high frequencies, by a factor that
+differs between monitoring points: close to the entrance K is near 1
+and the residual is nearly the first difference of the temperature.
+Q, H, K, the harmonic coefficients and the gain at 48 cpd for each
+monitoring point are written to `figs/02_kalman_parameters.csv`.
+
+The band-limited reconstruction is therefore made twice in
+`05_multiband_reconstruction.R`:
+
+- **Recoloured** (`kalman_filtered_multiband.rds` and its segment
+  summary): within the pass-band, each Fourier coefficient is divided
+  by the filter's response (`innovation_response()`), which returns the
+  band to degrees Celsius and to the timing of the temperature itself.
+  Used for Figures 9 and 10 and for the RMS amplitude in Figure 11.
+- **Prewhitened** (`kalman_filtered_multiband_prewhitened.rds`): the
+  band as it appears in the residuals. Used for the variance explained
+  in Figure 11, so that numerator and denominator are in the same
+  units; it is the share of residual (prediction-error) variance in
+  the band.
+
+The recolouring is applied to each zero-padded 8 h day or 16 h night
+segment, so it is exact for the band's Fourier coefficients but, like
+the band-pass itself, approximate within a few samples of a segment's
+ends. Figures 6, 7 and 8 show the residuals themselves; Figure 7 is
+normalised and Figure 8 is in relative decibels, so neither depends on
+the scaling.
+
+## 5. Smaller points
 
 - **Figure 7 normalisation.** Each monitoring point's day and night
   spectra are divided by that point's single largest amplitude across

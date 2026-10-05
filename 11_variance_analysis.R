@@ -3,7 +3,7 @@
 ## FIGURE 11: RMS AMPLITUDE AND VARIANCE EXPLAINED
 ## DATA ANALYSIS
 ## CODE WRITTEN BY MATT ROWBERRY
-## LAST MODIFIED 3 OCTOBER 2026
+## LAST MODIFIED 4 OCTOBER 2026
 
 #####
 
@@ -22,7 +22,11 @@ library(tidyr)
 # Input and output
 # ---------------------------------------------------------------------------
 
+# Recoloured reconstruction (degrees Celsius) for the RMS amplitude;
+# prewhitened reconstruction for the variance explained, so that it is
+# compared with residual variance in the same units (see NOTES.md).
 ifft_file <- "data/kalman_filtered_multiband.rds"
+prewhitened_file <- "data/kalman_filtered_multiband_prewhitened.rds"
 residuals_file <- "data/kalman_residuals_full_imp.rds"
 output_file <- "data/figure_11_heatmaps.rds"
 table_file <- "figs/11_variance_values.csv"
@@ -43,6 +47,7 @@ res_cols <- c(
 
 df_ifft <- readRDS(ifft_file)
 df_res <- readRDS(residuals_file)
+df_pw <- readRDS(prewhitened_file)
 
 # The residual file contains dttm, period and the six residual series.
 # Timestamp and day/night classification are aligned directly with
@@ -52,7 +57,9 @@ df_res <- readRDS(residuals_file)
 stopifnot(
     nrow(df_res) == nrow(df_ifft),
     all(df_res$dttm == df_ifft$timestamp),
-    all(df_res$period == df_ifft$period)
+    all(df_res$period == df_ifft$period),
+    nrow(df_pw) == nrow(df_ifft),
+    all(df_pw$timestamp == df_ifft$timestamp)
 )
 
 df_res$timestamp <- df_ifft$timestamp
@@ -80,7 +87,7 @@ rms_summary <- df_ifft %>%
 # Variance explained
 # ---------------------------------------------------------------------------
 
-ifft_long <- df_ifft %>%
+ifft_long <- df_pw %>%
     pivot_longer(cols = all_of(ifft_cols), names_to = "monitoring_point", values_to = "ifft") %>%
     mutate(
         monitoring_point = sub("_residual_nb3$", "", monitoring_point),

@@ -2,7 +2,7 @@
 
 ## ANALYSIS FUNCTIONS
 ## POOLE'S CAVERN TEMPERATURE DATA
-## LAST MODIFIED 3 OCTOBER 2026
+## LAST MODIFIED 4 OCTOBER 2026
 
 #####
 
@@ -13,6 +13,8 @@
 #
 # Contents:
 #   is_daytime()                      day/night classification (UK local time)
+#   steady_state_gain()               Kalman gain of the local-level model
+#   innovation_response()             frequency response of the residuals
 #   bandpass_filter_fft()             FFT band-pass filter for one series
 #   bandpass_by_daynight()            band-pass, split by day and night (Figure 7)
 #   reconstruct_multiband_segments()  band-pass within each day/night segment
@@ -55,6 +57,42 @@ is_daytime <- function(
 }
 
 # ---------------------------------------------------------------------------
+# Frequency response of the residuals
+# ---------------------------------------------------------------------------
+
+# The residuals saved by 02_kalman_filtering.R are one-step-ahead
+# prediction errors of the local-level model. Once the Kalman filter
+# has settled, these are a fixed linear filter of the temperature,
+#
+#   v_t = (1 - B) / (1 - (1 - K) B) y_t,
+#
+# where B is the backshift operator and K the steady-state Kalman gain.
+# The filter removes slow variability but amplifies high frequencies:
+# at 48 cpd the residual is 1.2-1.7 times the temperature oscillation,
+# depending on the monitoring point (see NOTES.md).
+
+#' Steady-state Kalman gain of a local-level model.
+#'
+#' @param Q Variance of the level disturbance.
+#' @param H Variance of the observation disturbance.
+#' @return The gain K, between 0 and 1.
+steady_state_gain <- function(Q, H) {
+    P <- (Q + sqrt(Q^2 + 4 * Q * H)) / 2 # steady-state prediction variance
+    P / (P + H)
+}
+
+#' Frequency response of the prediction-error filter.
+#'
+#' @param freq_cpd Frequencies, in cycles per day (may be negative).
+#' @param K Steady-state Kalman gain.
+#' @param fs_cpd Sampling frequency, in cycles per day.
+#' @return Complex response; `Mod()` gives the gain.
+innovation_response <- function(freq_cpd, K, fs_cpd) {
+    z <- exp(-2i * pi * freq_cpd / fs_cpd)
+    (1 - z) / (1 - (1 - K) * z)
+}
+
+# ---------------------------------------------------------------------------
 # Core FFT band-pass filter
 # ---------------------------------------------------------------------------
 
@@ -71,10 +109,15 @@ is_daytime <- function(
 #' @param x Numeric vector to filter.
 #' @param fs_cpd Sampling frequency, in cycles per day.
 #' @param freq_min_cpd,freq_max_cpd Pass-band, in cycles per day.
+#' @param K Optional steady-state Kalman gain. If given, the retained
+#'   coefficients are divided by `innovation_response()`, which undoes
+#'   the prediction-error filter and returns the band in the units and
+#'   phase of the temperature itself ("recolouring"). `NULL` leaves the
+#'   series as it is.
 #' @return A list with `filtered_signal` (same length as `x`),
 #'   `freqs_cpd`, `amplitude`, `power` (one-sided spectrum) and `N`
 #'   (the length of `x`). `NULL` if `x` has length zero.
-bandpass_filter_fft <- function(x, fs_cpd, freq_min_cpd, freq_max_cpd) {
+bandpass_filter_fft <- function(x, fs_cpd, freq_min_cpd, freq_max_cpd, K = NULL) {
     x_clean <- ifelse(is.na(x), 0, x)
     N_orig <- length(x_clean)
     if (N_orig == 0) return(NULL)
@@ -92,6 +135,13 @@ bandpass_filter_fft <- function(x, fs_cpd, freq_min_cpd, freq_max_cpd) {
     band_mask <- abs(freqs_cpd_shifted) >= freq_min_cpd & abs(freqs_cpd_shifted) <= freq_max_cpd
     fft_vals_filtered <- fft_vals
     fft_vals_filtered[!band_mask] <- 0
+
+    # Optional recolouring: undo the prediction-error filter within the
+    # pass-band. The band never contains 0 cpd, where the response is 0.
+    if (!is.null(K)) {
+        fft_vals_filtered[band_mask] <- fft_vals_filtered[band_mask] /
+            innovation_response(freqs_cpd_shifted[band_mask], K, fs_cpd)
+    }
 
     # Enforce Hermitian symmetry for a real inverse FFT.
     if (N_fft %% 2 == 0) {
@@ -217,6 +267,9 @@ bandpass_by_daynight <- function(
 #'   except `timestamp_col`.
 #' @param fs_cpd Sampling frequency, in cycles per day.
 #' @param bands Named list of `c(freq_min, freq_max)` pairs.
+#' @param K Optional named vector of steady-state Kalman gains, one per
+#'   signal column, passed to `bandpass_filter_fft()` to recolour the
+#'   reconstruction. `NULL` leaves it as the residuals are.
 #' @return A list with:
 #'   * `full_series` - a data frame with `timestamp`, `daynight` and
 #'     one reconstructed `<column>_<band>` series per column/band
@@ -234,7 +287,8 @@ reconstruct_multiband_segments <- function(
             # nb1 = c(24, 72),
             # nb2 = c(45, 51),
             nb3 = c(45.5, 50.5)
-        )
+        ),
+        K = NULL
 ) {
     if (is.null(signal_cols)) {
         signal_cols <- setdiff(names(df), timestamp_col)
@@ -271,7 +325,8 @@ reconstruct_multiband_segments <- function(
                 if (length(na.omit(seg_signal)) > 0) {
                     filtered_signal[idx] <- bandpass_filter_fft(
                         seg_signal, fs_cpd,
-                        freq_range[1], freq_range[2]
+                        freq_range[1], freq_range[2],
+                        K = if (is.null(K)) NULL else K[[col]]
                     )$filtered_signal
                 }
 
