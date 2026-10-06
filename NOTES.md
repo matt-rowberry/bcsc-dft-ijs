@@ -1,0 +1,144 @@
+# Notes on the analysis
+
+Details that are easy to misread as bugs. Each is reflected in the
+figures in the paper; changing any of them would change the results.
+
+## 1. Day and night are defined in UK local time
+
+All timestamps are UTC: the loggers do not change their clocks for
+British Summer Time. Opening hours follow local time, so `is_daytime()`
+in `analysis_functions.R` converts each timestamp to Europe/London time
+before classifying it:
+
+| | Local time | UTC during GMT (late Oct–late Mar) | UTC during BST |
+|---|---|---|---|
+| Day | 09:30–17:20 | 09:30–17:20 | 08:30–16:20 |
+| Night | 17:30–09:20 | 17:30–09:20 | 16:30–08:20 |
+
+Times are those of the 10-minute samples, so every sample is either day
+or night. The same function is used for Figure 6 (`04_day_night_split.R`)
+and for Figures 7, 9, 10 and 11 (`bandpass_by_daynight()` and
+`reconstruct_multiband_segments()`).
+
+The 09:30–17:20 window is a best estimate. After the first reopening,
+tours of 10–12 people started every 30 minutes from 09:30 to 16:30
+(Gunn et al., 2021), so visitors were in the cave until about 17:15;
+the visitor-related fluctuations in the data match this. Opening hours
+changed during the COVID-19 restrictions, however, and the data suggest
+shorter opening hours in winter (fluctuations from about 10:00 to
+16:00).
+The window is set in one place (`day_first_local`, `day_last_local`).
+
+Access-regime boundaries (`01_imputing.R`) fall at midnight UTC, i.e.
+01:00 local time during BST, which is within the night and does not
+affect any day.
+
+## 2. Zero marks a day with a long gap
+
+`03_long_gaps.R` does not interpolate gaps longer than 6 hours. It sets
+every residual on each affected calendar day to exactly `0`. It also
+sets the first residual of each series to `0`, because that value
+reflects the model's initialisation.
+
+These zeros pass through the band-pass filter. A day or night segment
+that is entirely zero comes out as exactly zero, since the FFT of a
+zero vector is zero. `11_variance_analysis.R` relies on this: it treats
+exact zeros in the reconstructed signal as missing (`na_if(ifft, 0)`),
+which removes those days from the RMS and variance summaries.
+
+One consequence: a day segment always lies within one calendar day
+(UTC), so it is either entirely zeroed or not at all. A night
+segment runs across midnight, so a zeroed calendar day can cover half
+of it. The band-passed values in that zeroed half are small but not
+exactly zero, so they stay in the Figure 11 summaries.
+
+## 3. Access-regime boundaries are written out in three places
+
+Each is derived from the same regime start dates (see
+`measured/README.md`), counted as `d` days from 2019-10-16 (UTC):
+
+| Script | Form | Values |
+|---|---|---|
+| `01_imputing.R` | dates in `case_when()` | 2020-03-19, 2020-07-20, 2020-11-05, 2021-05-18 |
+| `08_spectrogram_analysis.R` | `cut()` breaks on the spectrogram time axis, `d / 1000` | 0, 0.155, 0.278, 0.386, 0.580, 0.731 |
+| `10_segment_analysis.R` | day/night segment numbers, `2d + 1` | 311, 557, 773, 1161 (end 1463) |
+
+The spectrogram treats each residual series as a sound sampled at
+144,000 Hz (144 samples per day × 1000). One day of data therefore
+lasts 0.001 s on its time axis, and frequencies are read directly in
+cycles per day.
+
+Segments alternate night/day starting with the night of 2019-10-16.
+Segment `2d + 1` is the night spanning the midnight at which the regime
+changed, so script 10 assigns it to both adjacent regimes. Figure 11
+instead assigns each sample to a regime by its own timestamp (via the
+`period` column from script 01), so it splits that night between the
+two regimes.
+
+## 4. The residuals are one-step-ahead prediction errors
+
+`02_kalman_filtering.R` saves `residuals(kfs, type = "recursive")`:
+each temperature minus the model's prediction of it from the previous
+time step. These are not the model's observation disturbances. Once
+the Kalman filter has settled, they are a fixed linear filter of the
+temperature,
+
+    v_t = (1 - B) / (1 - (1 - K) B) y_t,
+
+where B is the backshift operator and K the steady-state Kalman gain
+of the local level, computed from the estimated variances Q and H
+(`steady_state_gain()` in `analysis_functions.R`). The filter strongly
+suppresses the diurnal and slower variability, which suits the
+segment-by-segment Fourier analysis: little of that large
+low-frequency variance can leak into the 45.5–50.5 cpd band
+(pre-whitening). It also amplifies high frequencies, by a factor that
+differs between monitoring points: close to the entrance K is near 1
+and the residual is nearly the first difference of the temperature.
+Q, H, K, the harmonic coefficients and the gain at 48 cpd for each
+monitoring point are written to `figs/02_kalman_parameters.csv`.
+
+The band-limited reconstruction is therefore made twice in
+`05_multiband_reconstruction.R`:
+
+- **Recoloured** (`kalman_filtered_multiband.rds` and its segment
+  summary): within the pass-band, each Fourier coefficient is divided
+  by the filter's response (`innovation_response()`), which returns the
+  band to degrees Celsius and to the timing of the temperature itself.
+  Used for Figures 9 and 10 and for the RMS amplitude in Figure 11.
+- **Prewhitened** (`kalman_filtered_multiband_prewhitened.rds`): the
+  band as it appears in the residuals. Used for the variance explained
+  in Figure 11, so that numerator and denominator are in the same
+  units; it is the share of residual (prediction-error) variance in
+  the band.
+
+The recolouring is applied to each zero-padded 8 h day or 16 h night
+segment, so it is exact for the band's Fourier coefficients but, like
+the band-pass itself, approximate within a few samples of a segment's
+ends. Figures 6, 7 and 8 show the residuals themselves; Figure 7 is
+normalised and Figure 8 is in relative decibels, so neither depends on
+the scaling.
+
+## 5. Smaller points
+
+- **Figure 7 normalisation.** Each monitoring point's day and night
+  spectra are divided by that point's single largest amplitude across
+  all five regimes, day and night. Amplitudes are therefore comparable
+  across regimes and between day and night for the same point, but not
+  between points.
+- **Missing values in the FFT.** `bandpass_filter_fft()` treats `NA` as
+  zero and zero-pads to the next power of two. In Figure 7 the day
+  (or night) series has the other half of each day set to `NA`, so
+  each spectrum is that of a gated series.
+- **Unused bands.** `reconstruct_multiband_segments()` keeps the wider
+  candidate bands examined before the analysis focused on 45.5–50.5 cpd,
+  commented out; only `nb3` (45.5–50.5 cpd) is used.
+- **Console messages.** `07_fft_analysis.R` prints a
+  `New names: ...1 ...` message from building a data frame from
+  unnamed columns; the columns are renamed on the next line and the
+  message can be ignored.
+
+## Reference
+
+Gunn, J., Rowberry, M. and Smith, A. (2021). Exploring the impact of
+tourists on cave air temperatures: a Covid-19 case study from Poole's
+Cavern, Derbyshire, UK. *Cave and Karst Science* 48, 121–128.
