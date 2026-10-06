@@ -185,7 +185,7 @@ for (i in seq_along(points)) {
 figure <- assemble_figure(
     panels,
     ncol = 5,
-    y_label = "r  e  s  i  d  u  a  l      t  e  m  p  e  r  a  t  u  r  e",
+    y_label = "r  e  s  i  d  u  a  l      t  e  m  p  e  r  a  t  u  r  e,     \u00B0  C",
     x_label = "n  o  r  m  a  l  i  s  e  d      t  i  m  e"
 )
 

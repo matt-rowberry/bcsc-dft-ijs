@@ -96,7 +96,7 @@ theme_set(theme_ste_heatmap())
 rms_plot <- format_mp(rms_summary)
 
 variance_explained_plot <- format_mp(variance_explained) %>%
-    mutate(condition = paste0("P", period, " ", daynight))
+    mutate(condition = paste0(period, " ", daynight), strip = "Day")
 
 # ---------------------------------------------------------------------------
 # RMS heatmap
@@ -144,6 +144,11 @@ variance_heatmap <- ggplot(variance_explained_plot, aes(x = condition, y = monit
 # ---------------------------------------------------------------------------
 # Combined plot
 # ---------------------------------------------------------------------------
+
+# Panel (b) gets an invisible one-panel strip so that its tag sits
+# the same distance above the tiles as the (a) tag beside "Day".
+rms_heatmap      <- rms_heatmap      + labs(tag = "(a)") + theme(plot.tag.location = "plot")
+variance_heatmap <- variance_heatmap + facet_wrap(~strip) + theme(strip.text = element_text(colour = "white")) + labs(tag = "(b)") + theme(plot.tag.location = "plot")
 
 final_plot_amplitude <- wrap_plots(
     rms_heatmap, plot_spacer(), variance_heatmap,

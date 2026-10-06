@@ -148,7 +148,7 @@ for (i in seq_along(points)) {
 ifft_segment_plot_open <- assemble_figure(
     panels,
     ncol = 3,
-    y_label = "r  e  c  o  n  s  t  r  u  c  t  e  d      s  i  g  n  a  l",
+    y_label = "r  e  c  o  n  s  t  r  u  c  t  e  d      s  i  g  n  a  l,     \u00B0  C",
     x_label = "n  o  r  m  a  l  i  s  e  d      t  i  m  e",
     regime_labels = paste("Access regime", periods)
 )
