@@ -47,7 +47,7 @@ inputs of the same logger, so their records share identical
 timestamps. Logger numbers, distances and descriptions for MP1–MP5 are
 from Gunn et al. (2021, Table 1), which uses distance along the show-cave
 path to name the sites; MP6 was not part of that study. The positions of
-the monitoring points are shown in the map figure of the manuscript and
+the monitoring points are shown in the map figure of the article and
 on the survey available from the BCSC monitoring page
 (<https://www.cave-science.org.uk/monitoring>).
 
