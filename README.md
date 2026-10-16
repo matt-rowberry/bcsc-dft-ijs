@@ -1,14 +1,26 @@
 # Hidden thermal signatures reveal the microclimatic influence of scheduled cave tourism
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23187186.svg)](https://doi.org/10.5281/zenodo.23187186)
+
 Code and data for the analysis of air-temperature records from six
 monitoring points in Poole's Cavern (Buxton, Derbyshire, UK), 16 October
 2019 to 15 October 2021. The pipeline reproduces Figures 6–11 of the
-manuscript from the raw 10-minute temperature records.
+article from the raw 10-minute temperature records.
 
-> **Citation.** If you use this code or data, please cite the
-> manuscript (Rowberry, M., Gunn, J. and Smith, A., *International
-> Journal of Speleology*, in revision) and this archive (see
-> `CITATION.cff`). <!-- TODO: add volume, pages and DOI once published -->
+> **Citation.** If you use this code or data, please cite the article
+> and this archive:
+>
+> Rowberry, M., Gunn, J., Smith, A., 2026. Hidden thermal signatures
+> reveal the microclimatic influence of scheduled cave tourism.
+> *International Journal of Speleology*, 55(3), ijs2630.
+> <https://doi.org/10.5038/1827-806X.ijs2630>
+>
+> Rowberry, M., Gunn, J., Smith, A., 2026. Code and data for "Hidden
+> thermal signatures reveal the microclimatic influence of scheduled
+> cave tourism". Zenodo. <https://doi.org/10.5281/zenodo.23187186>
+>
+> The archive DOI above always resolves to the latest version; each
+> version also has its own DOI, listed on the Zenodo record.
 
 ## Study site
 
@@ -96,7 +108,7 @@ and a `_plot.R` script that draws it to `figs/`.
 | 10 | Minimum–maximum range of the reconstruction in each day and night segment, open regimes (1, 3, 5) | `10_segment_analysis.R` | `10_segment_plot.R` |
 | 11 | RMS amplitude of the reconstruction and percentage of residual variance it explains; values also in `figs/11_variance_values.csv` | `11_variance_analysis.R` | `11_variance_plot.R` |
 
-Figures 1–5 of the manuscript (location map, cave map, photographs and
+Figures 1–5 of the article (location map, cave map, photographs and
 workflow diagrams) are not produced by this code.
 
 
