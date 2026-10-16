@@ -32,10 +32,10 @@ authors:
       Survey, Nottingham, United Kingdom
     email: andrews@bgs.ac.uk
     orcid: https://orcid.org/0000-0002-7658-6234
-doi: 10.5281/zenodo.23187186
+doi: 10.5281/zenodo.23187187
 repository-code: https://github.com/matt-rowberry/bcsc-dft-ijs
 license: MIT
-version: 1.0.1
+version: 1.0.0
 keywords:
   - cave microclimate
   - show cave
@@ -44,7 +44,7 @@ keywords:
   - spectral analysis
   - state-space model
   - Poole's Cavern
-date-released: 2026-10-16
+date-released: 2026-10-06
 preferred-citation:
   type: article
   title: "Hidden thermal signatures reveal the microclimatic influence of scheduled cave tourism"

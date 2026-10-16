@@ -1,6 +1,6 @@
 # Hidden thermal signatures reveal the microclimatic influence of scheduled cave tourism
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23187186.svg)](https://doi.org/10.5281/zenodo.23187186)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23187187.svg)](https://doi.org/10.5281/zenodo.23187187)
 
 Code and data for the analysis of air-temperature records from six
 monitoring points in Poole's Cavern (Buxton, Derbyshire, UK), 16 October
@@ -17,10 +17,8 @@ article from the raw 10-minute temperature records.
 >
 > Rowberry, M., Gunn, J., Smith, A., 2026. Code and data for "Hidden
 > thermal signatures reveal the microclimatic influence of scheduled
-> cave tourism". Zenodo. <https://doi.org/10.5281/zenodo.23187186>
->
-> The archive DOI above always resolves to the latest version; each
-> version also has its own DOI, listed on the Zenodo record.
+> cave tourism" (Version 1.0.0). Zenodo.
+> <https://doi.org/10.5281/zenodo.23187187>
 
 ## Study site
 
